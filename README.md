@@ -89,9 +89,12 @@ a URL e grave no `.env` (`DISCORD_WH_*`). Uma env por canal.
 3. Suba o serviço já acessível publicamente e, na aba **Webhooks** da integração, crie a
    subscription apontando para `https://SEU_HOST/webhook/notion`, selecionando os eventos
    `page.*` desejados.
-4. O Notion envia um POST único com o `verification_token` — o serviço loga a chegada
-   (prefixo mascarado). Recupere o valor, grave em `NOTION_VERIFICATION_TOKEN` no `.env`,
-   reinicie o serviço e cole o token na UI do Notion para ativar a subscription.
+4. O Notion envia um POST único com o `verification_token`. O log registra a chegada sem o
+   valor; o token inteiro fica em `verification_token` (modo `0600`) ao lado do SQLite, no
+   volume de dados: `docker compose exec notion2discord cat /app/data/verification_token`.
+   Grave o valor em `NOTION_VERIFICATION_TOKEN` no `.env`, reinicie o serviço e cole o token
+   na UI do Notion para ativar a subscription. Enquanto essa env estiver vazia, todo evento
+   recebe 401.
 5. Teste: crie/edite uma tarefa na database e confira os embeds. Eventos agregados
    (`page.properties_updated`) podem levar ~1 minuto para chegar.
 
