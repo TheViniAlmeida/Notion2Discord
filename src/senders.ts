@@ -6,6 +6,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // The queue is serial: a target that never answers must not stall every later event.
 const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_RETRY_AFTER_S = 30;
 
 export async function sendToTarget(
   target: TargetConfig,
@@ -33,7 +34,7 @@ export async function sendToTarget(
       } catch {
         // keep default
       }
-      await sleep(retryAfter * 1000);
+      await sleep(Math.min(retryAfter, MAX_RETRY_AFTER_S) * 1000);
       continue;
     }
     if (res.status >= 500 && attempt === 0) {

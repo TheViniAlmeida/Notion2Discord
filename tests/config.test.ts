@@ -33,4 +33,8 @@ describe('loadConfig', () => {
     const bad = yamlOk.replace('source: demandas', 'source: ghost');
     expect(() => loadConfig(bad, { WH_HIST: 'x', N8N_URL: 'y' })).toThrow(/ghost/);
   });
+  it('fails when a when clause has no operator', () => {
+    const bad = yamlOk.replace('send_to: [historico]', 'when: { property: "Status" }\n    send_to: [historico]');
+    expect(() => loadConfig(bad, { WH_HIST: 'x', N8N_URL: 'y' })).toThrow(/operator/);
+  });
 });

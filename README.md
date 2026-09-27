@@ -94,7 +94,8 @@ a URL e grave no `.env` (`DISCORD_WH_*`). Uma env por canal.
    volume de dados: `docker compose exec notion2discord cat /app/data/verification_token`.
    Grave o valor em `NOTION_VERIFICATION_TOKEN` no `.env`, reinicie o serviço e cole o token
    na UI do Notion para ativar a subscription. Enquanto essa env estiver vazia, todo evento
-   recebe 401.
+   recebe 401. Com a env preenchida, novos handshakes são ignorados; o arquivo só é gravado
+   uma vez. Para refazer a subscription, esvazie a env, apague o arquivo e reinicie.
 5. Teste: crie/edite uma tarefa na database e confira os embeds. Eventos agregados
    (`page.properties_updated`) podem levar ~1 minuto para chegar.
 

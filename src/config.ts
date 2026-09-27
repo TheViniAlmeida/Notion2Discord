@@ -8,7 +8,14 @@ const whenSchema = z.object({
   changed_from: z.string().optional(),
   equals: z.string().optional(),
   changed: z.boolean().optional(),
-});
+}).refine(
+  (w) =>
+    w.changed_to !== undefined ||
+    w.changed_from !== undefined ||
+    w.equals !== undefined ||
+    w.changed !== undefined,
+  { message: 'when needs at least one operator (changed_to, changed_from, equals, changed)' },
+);
 
 const embedFieldSchema = z.object({
   name: z.string(),

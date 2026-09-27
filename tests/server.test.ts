@@ -61,7 +61,7 @@ describe('POST /webhook/notion', () => {
   });
   it('hands the full verification token to onVerificationToken', async () => {
     const onVerificationToken = vi.fn();
-    const app = makeApp({ onVerificationToken });
+    const app = makeApp({ onVerificationToken, verificationToken: '' });
     await app.inject({
       method: 'POST',
       url: '/webhook/notion',
@@ -83,6 +83,55 @@ describe('POST /webhook/notion', () => {
     });
     expect(res.statusCode).toBe(401);
     expect(enqueue).not.toHaveBeenCalled();
+  });
+  it('ignores the handshake once a verification token is configured', async () => {
+    const onVerificationToken = vi.fn();
+    const app = makeApp({ onVerificationToken });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhook/notion',
+      payload: JSON.stringify({ verification_token: 'attacker_value' }),
+      headers: { 'content-type': 'application/json' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(onVerificationToken).not.toHaveBeenCalled();
+  });
+  it('rejects a non-object JSON body with 400', async () => {
+    const res = await makeApp().inject({
+      method: 'POST',
+      url: '/webhook/notion',
+      payload: 'null',
+      headers: { 'content-type': 'application/json' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+  it('rejects a signed payload missing required event fields with 400', async () => {
+    const enqueue = vi.fn();
+    const seenEvent = vi.fn(() => false);
+    const app = makeApp({ enqueue, seenEvent });
+    const body = JSON.stringify({ type: 'page.created' });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhook/notion',
+      payload: body,
+      headers: { 'content-type': 'application/json', 'x-notion-signature': sign(body) },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(seenEvent).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+  it('accepts application/json with a charset parameter', async () => {
+    const enqueue = vi.fn();
+    const app = makeApp({ enqueue });
+    const body = JSON.stringify(event);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhook/notion',
+      payload: body,
+      headers: { 'content-type': 'application/json; charset=utf-8', 'x-notion-signature': sign(body) },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(enqueue).toHaveBeenCalledOnce();
   });
   it('acknowledges duplicates without enqueueing', async () => {
     const enqueue = vi.fn();

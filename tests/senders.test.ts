@@ -57,6 +57,28 @@ describe('sendToTarget', () => {
     await sendToTarget({ type: 'discord', url: 'https://d/wh' }, event, embed, fetchFn);
     expect(signal).toBeInstanceOf(AbortSignal);
   });
+  it('caps a huge retry_after so the serial queue is not stalled', async () => {
+    vi.useFakeTimers();
+    const fetchFn = fetchSeq([
+      new Response(JSON.stringify({ retry_after: 3600 }), { status: 429 }),
+      new Response(null, { status: 204 }),
+    ]);
+    const p = sendToTarget({ type: 'discord', url: 'https://d/wh' }, event, embed, fetchFn);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await expect(p).resolves.toBeUndefined();
+    vi.useRealTimers();
+  });
+  it('retries once on 5xx', async () => {
+    vi.useFakeTimers();
+    const fetchFn = fetchSeq([
+      new Response(null, { status: 502 }),
+      new Response(null, { status: 204 }),
+    ]);
+    const p = sendToTarget({ type: 'discord', url: 'https://d/wh' }, event, embed, fetchFn);
+    await vi.runAllTimersAsync();
+    await expect(p).resolves.toBeUndefined();
+    vi.useRealTimers();
+  });
   it('throws on 4xx without retrying', async () => {
     const fetchFn = fetchSeq([new Response('bad', { status: 400 })]);
     await expect(

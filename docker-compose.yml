@@ -3,6 +3,8 @@ services:
     build: .
     image: notion2discord:latest
     restart: unless-stopped
+    # Lets the in-memory queue drain (Discord retry_after is capped at 30s).
+    stop_grace_period: 45s
     env_file: .env
     environment:
       N2D_CONFIG_PATH: /app/config/rules.yaml

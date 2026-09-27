@@ -52,8 +52,13 @@ const app = buildServer({
   onVerificationToken: (token) => {
     // Full value goes to a private file on the data volume, never to the log.
     const tokenPath = join(dirname(dbPath), 'verification_token');
-    writeFileSync(tokenPath, token + '\n', { mode: 0o600 });
-    log.info({ path: tokenPath }, 'verification token saved; paste it in the Notion UI and in .env');
+    try {
+      // 'wx': the first handshake wins; a later unauthenticated POST cannot overwrite it.
+      writeFileSync(tokenPath, token + '\n', { mode: 0o600, flag: 'wx' });
+      log.info({ path: tokenPath }, 'verification token saved; paste it in the Notion UI and in .env');
+    } catch (err) {
+      log.warn({ path: tokenPath, err: (err as Error).message }, 'verification token not saved');
+    }
   },
   logger: false,
 });
