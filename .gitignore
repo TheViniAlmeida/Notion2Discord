@@ -6,3 +6,5 @@ dist/
 data/
 *.sqlite
 *.log
+config/rules.yaml
+docker-compose.override.yml
