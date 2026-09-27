@@ -1,0 +1,86 @@
+# Example configuration: "Demandas" board with 5 Discord channels.
+# Copy to config/rules.yaml and adjust. NEVER put real URLs/secrets here:
+# targets reference the NAME of an env var (values live in .env).
+
+sources:
+  demandas:
+    database_id: "REPLACE_WITH_NOTION_DATABASE_ID"
+
+targets:
+  demandas-historico:
+    type: discord
+    webhook_env: DISCORD_WH_DEMANDAS_HISTORICO
+  demandas-adicionadas:
+    type: discord
+    webhook_env: DISCORD_WH_DEMANDAS_ADICIONADAS
+  demandas-emandamento:
+    type: discord
+    webhook_env: DISCORD_WH_DEMANDAS_EMANDAMENTO
+  demandas-atualizadas:
+    type: discord
+    webhook_env: DISCORD_WH_DEMANDAS_ATUALIZADAS
+  demandas-finalizadas:
+    type: discord
+    webhook_env: DISCORD_WH_DEMANDAS_FINALIZADAS
+  # Phase 2 (n8n): uncomment and set N8N_WEBHOOK_DEMANDAS in .env
+  # n8n-demandas:
+  #   type: webhook
+  #   url_env: N8N_WEBHOOK_DEMANDAS
+
+rules:
+  - name: historico-tudo
+    source: demandas
+    on: [page.created, page.properties_updated, page.content_updated, page.deleted]
+    send_to: [demandas-historico]
+    embed:
+      title: "{{event.label}}: {{page.title}}"
+      url: "{{page.url}}"
+      color: "#5865F2"
+      fields:
+        - { name: "Status", value: "{{prop.Status}}", inline: true }
+        - { name: "Atribuido", value: "{{prop.Atribuido}}", inline: true }
+
+  - name: tarefa-adicionada
+    source: demandas
+    on: [page.created]
+    send_to: [demandas-adicionadas]
+    embed:
+      title: "🆕 {{page.title}}"
+      url: "{{page.url}}"
+      color: "#FEE75C"
+
+  - name: tarefa-em-andamento
+    source: demandas
+    on: [page.properties_updated]
+    when: { property: "Status", changed_to: "Em andamento" }
+    send_to: [demandas-emandamento]
+    embed:
+      title: "▶️ {{page.title}}"
+      url: "{{page.url}}"
+      color: "#EB459E"
+      fields:
+        - { name: "Status", value: "{{change.from}} → {{change.to}}", inline: true }
+
+  - name: tarefa-atualizada
+    source: demandas
+    on: [page.properties_updated]
+    send_to: [demandas-atualizadas]
+    embed:
+      title: "✏️ {{page.title}}"
+      url: "{{page.url}}"
+      color: "#5865F2"
+      fields:
+        - { name: "Mudanças", value: "{{changes.summary}}", inline: false }
+
+  - name: tarefa-finalizada
+    source: demandas
+    on: [page.properties_updated]
+    when: { property: "Status", changed_to: "Concluido" }
+    send_to: [demandas-finalizadas]
+    embed:
+      title: "✅ {{page.title}}"
+      url: "{{page.url}}"
+      color: "#57F287"
+      fields:
+        - { name: "Status", value: "{{change.from}} → {{change.to}}", inline: true }
+        - { name: "Atribuido", value: "{{prop.Atribuido}}", inline: true }
