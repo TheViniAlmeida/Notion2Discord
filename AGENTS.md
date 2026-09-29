@@ -55,7 +55,8 @@ YAML. Genérico e multi-database: a semântica dos canais é configuração, nun
 | `src/template.ts` | placeholders `{{...}}` + limites de embed + menções (`allowed_mentions`) |
 | `src/senders.ts` | POST discord (mensagem com embed) e webhook genérico (JSON) |
 | `src/processor.ts` | orquestra fetch → diff → rules → send; comentários sem snapshot |
-| `config/` | `rules.example.yaml` (versionado) / `rules.yaml` (local) |
+| `config/` | `rules.example.yaml` (modelo versionado, só valores fictícios) / `rules.yaml` (host, gitignored) |
+| `docs/configuracao.md` | referência de configuração: toda opção nova do YAML entra aqui |
 | `tests/` | vitest, um arquivo por módulo |
 
 ## Comandos

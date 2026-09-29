@@ -50,13 +50,13 @@ describe('loadConfig', () => {
   });
   it('merges embed_defaults into every rule embed, rule keys winning', () => {
     const y = yamlOk.replace('embed: { title: "{{page.title}}" }', 'embed: { title: "{{page.title}}", color: "#000000" }')
-      + 'embed_defaults:\n  color: "#FFFFFF"\n  thumbnail: { url: "https://example.com/logo.png" }\n  footer: { text: "LabForge" }\n';
+      + 'embed_defaults:\n  color: "#FFFFFF"\n  thumbnail: { url: "https://example.com/logo.png" }\n  footer: { text: "Acme" }\n';
     const embed = loadConfig(y, { WH_HIST: 'x', N8N_URL: 'y' }).rules[0]!.embed!;
     expect(embed).toEqual({
       title: '{{page.title}}',
       color: '#000000',
       thumbnail: { url: 'https://example.com/logo.png' },
-      footer: { text: 'LabForge' },
+      footer: { text: 'Acme' },
     });
   });
   it('fails when a when clause has no operator', () => {

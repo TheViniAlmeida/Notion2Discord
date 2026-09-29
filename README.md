@@ -29,12 +29,14 @@ a página e compara com o último snapshot que guardou, produzindo mudanças `fr
 
 ## Configuração
 
-Dois arquivos, papéis distintos:
+**Referência completa: [`docs/configuracao.md`](docs/configuracao.md)** — variáveis de
+ambiente, cada seção do YAML, eventos, condições, placeholders, visual dos embeds, menções,
+comentários, passo a passo no Notion e no Discord e problemas comuns.
 
 | Arquivo | Papel | Versionado? |
 |---|---|---|
-| `config/rules.yaml` | sources, targets e regras (referencia envs **por nome**) | pode (sem segredos) — exemplo em [`config/rules.example.yaml`](config/rules.example.yaml) |
-| `.env` | tokens e URLs de webhook (valores reais) | **nunca** — template em [`.env.example`](.env.example) |
+| `.env` | tokens e URLs de webhook (segredos) | **não** — modelo em [`.env.example`](.env.example) |
+| `config/rules.yaml` | sources, targets, regras, visual e mapa de pessoas da instância | **não** (gitignored) — modelo em [`config/rules.example.yaml`](config/rules.example.yaml) |
 
 Exemplo de regra:
 
@@ -45,70 +47,19 @@ rules:
     on: [page.properties_updated]
     when: { property: "Status", changed_to: "Concluido" }
     send_to: [demandas-finalizadas]
+    mention: [Atribuido]
     embed:
-      title: "✅ {{page.title}}"
+      author: { name: "✅ Demanda concluída" }
+      title: "{{page.title}}"
       url: "{{page.url}}"
       color: "#57F287"
       fields:
-        - { name: "Status", value: "{{change.from}} → {{change.to}}", inline: true }
+        - { name: "🔄 Status", value: "{{change.from}} → **{{change.to}}**", inline: true }
+        - { name: "👤 Atribuído", value: "{{mention.Atribuido}}", inline: true }
 ```
 
-Condições `when`: `changed_to`, `changed_from`, `equals`, `changed`. Placeholders:
-`{{page.title}}`, `{{page.url}}`, `{{event.label}}`, `{{prop.<Nome>}}`, `{{mention.<Nome>}}`,
-`{{change.from}}`, `{{change.to}}`, `{{changes.summary}}`, `{{comment.text}}`.
-
-### Comentários
-
-Regras com `on: [comment.created]` recebem os comentários das páginas das sources. O serviço
-busca o comentário e as pessoas na API (o evento só traz ids): `{{comment.text}}` é o texto,
-`comment.author` e `comment.mentions` valem em `mention:` e em `{{mention.comment.author}}` /
-`{{mention.comment.mentions}}`. Pede a capability *Read comments* na integração e o evento
-`comment.created` na subscription. Comentário não altera o snapshot da página.
-`comment.updated` também funciona se uma regra o listar; `comment.deleted` é descartado (o
-comentário já não pode ser lido). Sem regra para o tipo, o serviço nem chama a API.
-
-### Visual do embed
-
-Campos aceitos em `embed` (todos com placeholders): `author` (`name`, `url`, `icon_url`), `title`,
-`url`, `description`, `color`, `fields` (`name`, `value`, `inline`), `thumbnail.url` (imagem à
-direita), `image.url` (imagem embaixo) e `footer` (`text`, `icon_url`). O `timestamp` é o do
-evento. `embed_defaults` define o visual comum (logo, imagem, rodapé) e cada regra sobrescreve
-chave a chave; `fields` da regra substitui a lista inteira:
-
-```yaml
-embed_defaults:
-  thumbnail: { url: "https://example.com/logo.png" }
-  image: { url: "https://example.com/line.gif" }
-  footer: { text: "Quadro de Demandas • #{{prop.ID}}", icon_url: "https://example.com/logo.png" }
-```
-
-Placeholders aceitam espaços e acentos: `{{prop.Esforço necessário}}`, `{{mention.Criado por}}`.
-Imagens precisam ser `https` e leves: o Discord baixa a imagem a cada exibição.
-
-### Marcar pessoas no Discord
-
-A seção `people` liga o e-mail da pessoa no Notion ao ID dela no Discord. Uma regra com
-`mention: [Atribuido]` marca (com notificação) quem está nessa propriedade. Valem os tipos
-*people*, *Created by* e *Last edited by* (ex.: `mention: [Atribuido, "Criado por"]`):
-
-```yaml
-people:
-  "ana@example.com": "100000000000000001"
-
-rules:
-  - name: tarefa-finalizada
-    mention: [Atribuido]
-    # ...
-```
-
-- A menção vai no texto da mensagem, porque o Discord não notifica menção dentro de embed.
-  `{{mention.<Nome>}}` mostra a menção clicável no embed, sem notificar, e cai no nome de quem
-  não está mapeado. O Discord só renderiza menção na `description` e no `value` dos fields.
-- `allowed_mentions` só libera os IDs da regra: `@everyone` num título não dispara nada.
-- A integração precisa de *Read user information including email addresses* no Notion.
-- E-mail é dado pessoal: preencha `people` só no `config/rules.yaml` do host (gitignored). O
-  snapshot em SQLite não guarda e-mails, e targets `webhook` recebem as pessoas (inclusive de
-  comentários) sem e-mail.
+Marca, imagens, ids e pessoas de uma instância ficam só no `rules.yaml` do host; o modelo
+versionado usa valores fictícios (`example.com`).
 
 ## Rodando
 
@@ -137,7 +88,9 @@ a URL e grave no `.env` (`DISCORD_WH_*`). Uma env por canal.
 
 1. Crie uma integração interna em [notion.so/my-integrations](https://www.notion.so/my-integrations),
    copie o token para `NOTION_API_TOKEN` e dê acesso à(s) database(s) desejada(s)
-   (menu `...` da database → Connections).
+   (menu `...` da database → Connections). Capabilities: *Read content*; *Read comments* para
+   comentários; *Read user information including email addresses* para menções
+   ([detalhes](docs/configuracao.md#passo-a-passo-de-uma-instância-nova)).
 2. Copie o ID da database para o `database_id` do `rules.yaml` (está na URL da database).
 3. Suba o serviço já acessível publicamente e, na aba **Webhooks** da integração, crie a
    subscription apontando para `https://SEU_HOST/webhook/notion`, selecionando os eventos
@@ -169,7 +122,8 @@ Webhook, sem tocar na API do Notion. Contrato e passo a passo: [`docs/n8n.md`](d
 
 - Design/spec: [`docs/specs/2026-09-21-notion2discord-design.md`](docs/specs/2026-09-21-notion2discord-design.md)
 - Plano de implementação (v1): [`docs/plans/2026-09-21-implementacao-v1.md`](docs/plans/2026-09-21-implementacao-v1.md)
-- Integração n8n (fase 2): `docs/n8n.md`
+- **Configuração (referência completa): [`docs/configuracao.md`](docs/configuracao.md)**
+- Integração n8n (fase 2): [`docs/n8n.md`](docs/n8n.md)
 - Referências: [Notion webhooks](https://developers.notion.com/reference/webhooks) ·
   [Discord webhooks](https://support.discord.com/hc/pt-br/articles/228383668) ·
   [Discord embeds](https://discord.com/developers/docs/resources/webhook#execute-webhook)
