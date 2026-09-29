@@ -1,20 +1,28 @@
 import type { TargetConfig } from './config.js';
 import type { DiscordMessage } from './template.js';
-import type { EnrichedEvent } from './types.js';
+import type { EnrichedEvent, PagePerson } from './types.js';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // E-mails are only needed to resolve mentions: they never leave the service.
+const noEmail = ({ name, discordId }: PagePerson): PagePerson => ({ name, email: null, discordId });
+
 function withoutEmails(event: EnrichedEvent): EnrichedEvent {
   const people = event.page.people;
-  if (!people) return event;
-  const stripped = Object.fromEntries(
-    Object.entries(people).map(([prop, list]) => [
-      prop,
-      list.map(({ name, discordId }) => ({ name, email: null, discordId })),
-    ]),
-  );
-  return { ...event, page: { ...event.page, people: stripped } };
+  const page = people
+    ? {
+        ...event.page,
+        people: Object.fromEntries(
+          Object.entries(people).map(([prop, list]) => [prop, list.map(noEmail)]),
+        ),
+      }
+    : event.page;
+  const comment = event.comment && {
+    ...event.comment,
+    author: noEmail(event.comment.author),
+    mentions: event.comment.mentions.map(noEmail),
+  };
+  return { ...event, page, ...(comment ? { comment } : {}) };
 }
 
 // The queue is serial: a target that never answers must not stall every later event.

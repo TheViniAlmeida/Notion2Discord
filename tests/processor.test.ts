@@ -88,6 +88,77 @@ describe('processor', () => {
     expect(store.getSnapshot('p1')).not.toHaveProperty('people');
     store.close();
   });
+  it('delivers comment events pinging the mentioned people, without touching snapshots', async () => {
+    const store = new SnapshotStore(':memory:');
+    const send = vi.fn(async () => {});
+    const cfgComment: AppConfig = {
+      ...cfg,
+      labels: { ...cfg.labels, 'comment.created': 'Novo comentário' },
+      rules: [{
+        name: 'comentario', source: 'demandas', on: ['comment.created'], send_to: ['done'],
+        mention: ['comment.mentions'], embed: { title: '{{page.title}}', description: '{{comment.text}}' },
+      }],
+    };
+    const fetchPage = vi.fn(async () => ({ ...pageV2, parentDatabaseId: 'aaaa-1111' }));
+    const proc = createProcessor({
+      config: cfgComment,
+      store,
+      notion: {
+        fetchPage,
+        fetchComment: async () => ({
+          text: 'veja @Ana',
+          author: { name: 'Bia', email: null },
+          mentions: [{ name: 'Ana', email: 'ana@example.com' }],
+        }),
+      },
+      send,
+    });
+    await proc({
+      ...rawEvent,
+      type: 'comment.created',
+      entity: { id: 'c1', type: 'comment' },
+      data: { page_id: 'p1', parent: { id: 'p1', type: 'page' } },
+    });
+    expect(fetchPage).toHaveBeenCalledWith('p1');
+    const [, event, message] = send.mock.calls[0]!;
+    expect(event.label).toBe('Novo comentário');
+    expect(message!.content).toBe('<@100000000000000001>');
+    expect(message!.embeds[0]!.description).toBe('veja @Ana');
+    expect(store.getSnapshot('p1')).toBeNull();
+    store.close();
+  });
+  it('discards comments on pages outside the sources and comment.deleted', async () => {
+    const store = new SnapshotStore(':memory:');
+    const send = vi.fn(async () => {});
+    const fetchComment = vi.fn();
+    const proc = createProcessor({
+      config: { ...cfg, rules: [{ name: 'c', source: 'demandas', on: ['comment.created', 'comment.deleted'], send_to: ['feed'] }] },
+      store,
+      notion: { fetchPage: async () => ({ ...pageV2, parentDatabaseId: 'other' }), fetchComment },
+      send,
+    });
+    const comment = { ...rawEvent, entity: { id: 'c1', type: 'comment' }, data: { page_id: 'p1' } };
+    await proc({ ...comment, type: 'comment.created' });
+    await proc({ ...comment, type: 'comment.deleted' });
+    expect(fetchComment).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    store.close();
+  });
+  it('skips API calls for comment types no rule listens to', async () => {
+    const store = new SnapshotStore(':memory:');
+    const fetchPage = vi.fn();
+    const send = vi.fn();
+    const proc = createProcessor({
+      config: cfg,
+      store,
+      notion: { fetchPage, fetchComment: vi.fn() },
+      send,
+    });
+    await proc({ ...rawEvent, type: 'comment.updated', entity: { id: 'c1', type: 'comment' }, data: { page_id: 'p1' } });
+    expect(fetchPage).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    store.close();
+  });
   it('a failing target does not block the others nor rethrow', async () => {
     const store = new SnapshotStore(':memory:');
     store.saveSnapshot({ ...pageV2, properties: { Status: 'Em andamento' } });

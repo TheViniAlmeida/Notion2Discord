@@ -5,6 +5,7 @@ export type NotionEvent = {
   entity: { id: string; type: string };
   data?: {
     parent?: { id: string; type: string };
+    page_id?: string; // comment.* events
     updated_properties?: string[];
   };
 };
@@ -18,6 +19,14 @@ export type NormalizedPage = {
   properties: Record<string, string | null>;
   // People properties with e-mails, for mentions. In memory only: never persisted.
   people?: Record<string, PagePerson[]>;
+  // Database the page belongs to; resolves the source of comment events.
+  parentDatabaseId?: string | null;
+};
+
+export type CommentInfo = {
+  text: string;
+  author: PagePerson;
+  mentions: PagePerson[];
 };
 
 export type PropertyChange = {
@@ -33,4 +42,5 @@ export type EnrichedEvent = {
   page: NormalizedPage;
   changes: PropertyChange[];
   timestamp: string;
+  comment?: CommentInfo;
 };

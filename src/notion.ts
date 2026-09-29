@@ -1,4 +1,4 @@
-import type { NormalizedPage, PagePerson } from './types.js';
+import type { CommentInfo, NormalizedPage, PagePerson } from './types.js';
 
 const NOTION_VERSION = '2025-09-03';
 const API_BASE = 'https://api.notion.com/v1';
@@ -80,7 +80,23 @@ export function normalizePage(raw: unknown): NormalizedPage {
       }));
     }
   }
-  return { id: page.id, url: page.url ?? '', title, properties, people };
+  return {
+    id: page.id,
+    url: page.url ?? '',
+    title,
+    properties,
+    people,
+    parentDatabaseId: page.parent?.database_id ?? null,
+  };
+}
+
+export class NotionApiError extends Error {
+  constructor(
+    readonly status: number,
+    what: string,
+  ) {
+    super(`Notion API error ${status} fetching ${what}`);
+  }
 }
 
 export class NotionClient {
@@ -89,14 +105,53 @@ export class NotionClient {
     private fetchFn: typeof fetch = fetch,
   ) {}
 
-  async fetchPage(pageId: string): Promise<NormalizedPage> {
-    const res = await this.fetchFn(`${API_BASE}/pages/${encodeURIComponent(pageId)}`, {
+  private async get(path: string, what: string): Promise<unknown> {
+    const res = await this.fetchFn(`${API_BASE}${path}`, {
       headers: {
         Authorization: `Bearer ${this.token}`,
         'Notion-Version': NOTION_VERSION,
       },
     });
-    if (!res.ok) throw new Error(`Notion API error ${res.status} fetching page`);
-    return normalizePage(await res.json());
+    if (!res.ok) throw new NotionApiError(res.status, what);
+    return res.json();
+  }
+
+  async fetchPage(pageId: string): Promise<NormalizedPage> {
+    return normalizePage(await this.get(`/pages/${encodeURIComponent(pageId)}`, 'page'));
+  }
+
+  // Comment payloads carry only user ids: name and e-mail come from /users.
+  // A user the integration cannot read keeps the fallback name and gets no mention;
+  // rate limits and outages propagate so the queue retries instead of dropping the ping.
+  private async fetchUser(userId: string, fallbackName: string): Promise<PagePerson> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const u = (await this.get(`/users/${encodeURIComponent(userId)}`, 'user')) as any;
+      return { name: u.name ?? fallbackName, email: u.person?.email?.toLowerCase() ?? null };
+    } catch (err) {
+      if (err instanceof NotionApiError && (err.status === 429 || err.status >= 500)) throw err;
+      return { name: fallbackName, email: null };
+    }
+  }
+
+  async fetchComment(commentId: string): Promise<CommentInfo> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = (await this.get(`/comments/${encodeURIComponent(commentId)}`, 'comment')) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const richText: any[] = c.rich_text ?? [];
+    const mentioned = new Map<string, string>();
+    for (const item of richText) {
+      if (item?.type === 'mention' && item.mention?.type === 'user' && item.mention.user?.id) {
+        const name = String(item.plain_text ?? '').replace(/^@/, '') || 'unknown';
+        mentioned.set(item.mention.user.id, name);
+      }
+    }
+    const author = await this.fetchUser(
+      c.created_by?.id ?? '',
+      c.display_name?.resolved_name ?? 'unknown',
+    );
+    const mentions: PagePerson[] = [];
+    for (const [id, name] of mentioned) mentions.push(await this.fetchUser(id, name));
+    return { text: joinRichText(richText) ?? '', author, mentions };
   }
 }

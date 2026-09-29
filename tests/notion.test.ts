@@ -80,3 +80,51 @@ describe('NotionClient', () => {
     await expect(client.fetchPage('missing')).rejects.toThrow(/404/);
   });
 });
+
+describe('NotionClient.fetchComment', () => {
+  const comment = {
+    id: 'c1',
+    created_by: { object: 'user', id: 'u-author' },
+    display_name: { type: 'user', resolved_name: 'Autor Nome' },
+    rich_text: [
+      { type: 'text', plain_text: 'Olha isso ' },
+      { type: 'mention', plain_text: '@Ana', mention: { type: 'user', user: { object: 'user', id: 'u-ana' } } },
+      { type: 'text', plain_text: ' e ' },
+      { type: 'mention', plain_text: '@Ana', mention: { type: 'user', user: { object: 'user', id: 'u-ana' } } },
+    ],
+  };
+  const fetchFn = (async (url: any) => {
+    const u = String(url);
+    if (u.endsWith('/comments/c1')) return new Response(JSON.stringify(comment), { status: 200 });
+    if (u.endsWith('/users/u-ana'))
+      return new Response(JSON.stringify({ name: 'Ana', person: { email: 'Ana@Example.com' } }), { status: 200 });
+    return new Response('forbidden', { status: 403 });
+  }) as typeof fetch;
+
+  it('returns text, author and deduplicated mentions with e-mails from /users', async () => {
+    const c = await new NotionClient('tok', fetchFn).fetchComment('c1');
+    expect(c.text).toBe('Olha isso @Ana e @Ana');
+    expect(c.mentions).toEqual([{ name: 'Ana', email: 'ana@example.com' }]);
+  });
+  it('falls back to the display name when the author cannot be read', async () => {
+    const c = await new NotionClient('tok', fetchFn).fetchComment('c1');
+    expect(c.author).toEqual({ name: 'Autor Nome', email: null });
+  });
+  it('propagates a rate limit on /users so the queue retries', async () => {
+    const limited = (async (url: any) =>
+      String(url).endsWith('/comments/c1')
+        ? new Response(JSON.stringify(comment), { status: 200 })
+        : new Response('slow down', { status: 429 })) as typeof fetch;
+    await expect(new NotionClient('tok', limited).fetchComment('c1')).rejects.toThrow(/429/);
+  });
+  it('throws when the comment itself cannot be fetched', async () => {
+    await expect(new NotionClient('tok', fetchFn).fetchComment('missing')).rejects.toThrow(/403/);
+  });
+});
+
+describe('normalizePage parent', () => {
+  it('exposes the parent database id', () => {
+    const page = normalizePage({ id: 'p', parent: { type: 'data_source_id', data_source_id: 'ds', database_id: 'db1' }, properties: {} });
+    expect(page.parentDatabaseId).toBe('db1');
+  });
+});

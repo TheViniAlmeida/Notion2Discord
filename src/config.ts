@@ -74,6 +74,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   'page.content_updated': 'Conteúdo atualizado',
   'page.deleted': 'Tarefa removida',
   'page.undeleted': 'Tarefa restaurada',
+  'comment.created': 'Novo comentário',
 };
 
 export function loadConfig(

@@ -32,12 +32,13 @@ O n8n **não** recebe webhook do Notion. Ele recebe do Notion2Discord, por um ta
 
 | Campo | Significado |
 |---|---|
-| `type` | tipo do evento do Notion (`page.created`, `page.properties_updated`, `page.content_updated`, `page.deleted`, `page.undeleted`) |
+| `type` | tipo do evento do Notion (`page.created`, `page.properties_updated`, `page.content_updated`, `page.deleted`, `page.undeleted`, `comment.created`) |
 | `label` | rótulo legível do tipo (configurável em `labels` no `rules.yaml`) |
 | `sourceKey` | chave da source em `rules.yaml` (qual database gerou o evento) |
 | `timestamp` | horário do evento segundo o Notion |
 | `page.properties` | **todas** as propriedades da página, já normalizadas para texto (`null` = vazia) |
 | `page.people` | pessoas de cada propriedade *people*, com o `discordId` do mapa `people` do `rules.yaml` (ausente se não mapeada). O `email` sempre vem `null`: e-mail não sai do serviço. Ausente em `page.deleted` |
+| `comment` | só em `comment.created`: `{ text, author, mentions }`, pessoas no mesmo formato de `page.people` (sem e-mail) |
 | `changes` | só o que mudou desde o último snapshot, com `from` e `to`; vazio em `page.deleted` |
 
 Numa página vista pela primeira vez, todas as propriedades preenchidas aparecem em

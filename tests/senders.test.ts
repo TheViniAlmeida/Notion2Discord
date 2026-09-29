@@ -56,6 +56,23 @@ describe('sendToTarget', () => {
       name: 'Ana', email: null, discordId: '100000000000000001',
     });
   });
+  it('strips e-mails of comment author and mentions too', async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (_u: any, init: any) => {
+      calls.push(init.body);
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    await sendToTarget({ type: 'webhook', url: 'https://n8n/wh' }, {
+      ...event,
+      comment: {
+        text: 'x',
+        author: { name: 'Bia', email: 'bia@example.com' },
+        mentions: [{ name: 'Ana', email: 'ana@example.com', discordId: '100000000000000001' }],
+      },
+    }, null, fetchFn);
+    expect(calls[0]).not.toContain('@example.com');
+    expect(JSON.parse(calls[0]!).comment.mentions[0]).toEqual({ name: 'Ana', email: null, discordId: '100000000000000001' });
+  });
   it('retries once after a 429 honoring retry_after', async () => {
     vi.useFakeTimers();
     const fetchFn = fetchSeq([

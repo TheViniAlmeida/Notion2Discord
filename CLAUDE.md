@@ -48,13 +48,13 @@ YAML. Genérico e multi-database: a semântica dos canais é configuração, nun
 | `src/signature.ts` | HMAC-SHA256 timing-safe do `X-Notion-Signature` |
 | `src/config.ts` | schema zod do YAML + resolução de envs por nome |
 | `src/queue.ts` | fila em memória serial com retry/backoff |
-| `src/notion.ts` | client da API (`Notion-Version: 2025-09-03`) + normalização de propriedades |
+| `src/notion.ts` | client da API (`Notion-Version: 2025-09-03`): páginas, comentários, usuários + normalização |
 | `src/store.ts` | SQLite: snapshots de página + dedup de eventos |
 | `src/diff.ts` | mudanças `{property, from, to}` entre snapshot e página atual |
 | `src/rules.ts` | matching: source + `on` + `when` (`changed_to`/`changed_from`/`equals`/`changed`) |
 | `src/template.ts` | placeholders `{{...}}` + limites de embed + menções (`allowed_mentions`) |
 | `src/senders.ts` | POST discord (mensagem com embed) e webhook genérico (JSON) |
-| `src/processor.ts` | orquestra fetch → diff → rules → send |
+| `src/processor.ts` | orquestra fetch → diff → rules → send; comentários sem snapshot |
 | `config/` | `rules.example.yaml` (versionado) / `rules.yaml` (local) |
 | `tests/` | vitest, um arquivo por módulo |
 

@@ -1,5 +1,5 @@
 import type { EmbedTemplate, Rule } from './config.js';
-import type { EnrichedEvent, PropertyChange } from './types.js';
+import type { EnrichedEvent, PagePerson, PropertyChange } from './types.js';
 
 export type DiscordEmbed = {
   title?: string;
@@ -20,6 +20,13 @@ const EMPTY = '—';
 
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+// People behind a mention key: comment.author, comment.mentions or a page property.
+function peopleFor(event: EnrichedEvent, key: string): PagePerson[] | undefined {
+  if (key === 'comment.author') return event.comment ? [event.comment.author] : undefined;
+  if (key === 'comment.mentions') return event.comment?.mentions;
+  return event.page.people?.[key];
 }
 
 function primaryChange(event: EnrichedEvent, rule: Rule): PropertyChange | undefined {
@@ -45,10 +52,11 @@ export function renderString(tpl: string, event: EnrichedEvent, rule: Rule): str
     if (key === 'change.from') return change?.from ?? EMPTY;
     if (key === 'change.to') return change?.to ?? EMPTY;
     if (key === 'changes.summary') return changesSummary(event);
+    if (key === 'comment.text') return event.comment?.text || EMPTY;
     if (key.startsWith('prop.')) return event.page.properties[key.slice(5)] ?? EMPTY;
     if (key.startsWith('mention.')) {
       const prop = key.slice(8);
-      const people = event.page.people?.[prop];
+      const people = peopleFor(event, prop);
       // Snapshots (page.deleted) have no people: fall back to the plain names.
       if (!people) return event.page.properties[prop] ?? EMPTY;
       if (people.length === 0) return EMPTY;
@@ -80,8 +88,8 @@ export function renderEmbed(
 }
 
 export function mentionIds(rule: Rule, event: EnrichedEvent): string[] {
-  const ids = (rule.mention ?? []).flatMap((prop) =>
-    (event.page.people?.[prop] ?? []).map((p) => p.discordId),
+  const ids = (rule.mention ?? []).flatMap((key) =>
+    (peopleFor(event, key) ?? []).map((p) => p.discordId),
   );
   return [...new Set(ids.filter((id): id is string => Boolean(id)))];
 }

@@ -55,7 +55,17 @@ rules:
 
 Condições `when`: `changed_to`, `changed_from`, `equals`, `changed`. Placeholders:
 `{{page.title}}`, `{{page.url}}`, `{{event.label}}`, `{{prop.<Nome>}}`, `{{mention.<Nome>}}`,
-`{{change.from}}`, `{{change.to}}`, `{{changes.summary}}`.
+`{{change.from}}`, `{{change.to}}`, `{{changes.summary}}`, `{{comment.text}}`.
+
+### Comentários
+
+Regras com `on: [comment.created]` recebem os comentários das páginas das sources. O serviço
+busca o comentário e as pessoas na API (o evento só traz ids): `{{comment.text}}` é o texto,
+`comment.author` e `comment.mentions` valem em `mention:` e em `{{mention.comment.author}}` /
+`{{mention.comment.mentions}}`. Pede a capability *Read comments* na integração e o evento
+`comment.created` na subscription. Comentário não altera o snapshot da página.
+`comment.updated` também funciona se uma regra o listar; `comment.deleted` é descartado (o
+comentário já não pode ser lido). Sem regra para o tipo, o serviço nem chama a API.
 
 ### Marcar pessoas no Discord
 
@@ -79,7 +89,8 @@ rules:
 - `allowed_mentions` só libera os IDs da regra: `@everyone` num título não dispara nada.
 - A integração precisa de *Read user information including email addresses* no Notion.
 - E-mail é dado pessoal: preencha `people` só no `config/rules.yaml` do host (gitignored). O
-  snapshot em SQLite não guarda e-mails, e targets `webhook` recebem as pessoas sem e-mail.
+  snapshot em SQLite não guarda e-mails, e targets `webhook` recebem as pessoas (inclusive de
+  comentários) sem e-mail.
 
 ## Rodando
 

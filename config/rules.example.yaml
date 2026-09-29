@@ -22,6 +22,9 @@ targets:
   demandas-finalizadas:
     type: discord
     webhook_env: DISCORD_WH_DEMANDAS_FINALIZADAS
+  demandas-comentarios:
+    type: discord
+    webhook_env: DISCORD_WH_DEMANDAS_COMENTARIOS
   # Phase 2 (n8n): uncomment and set N8N_WEBHOOK_DEMANDAS in .env
   # n8n-demandas:
   #   type: webhook
@@ -94,3 +97,17 @@ rules:
       fields:
         - { name: "Status", value: "{{change.from}} → {{change.to}}", inline: true }
         - { name: "Atribuido", value: "{{mention.Atribuido}}", inline: true }
+
+  # Needs "Read comments" on the Notion integration and comment.created in the subscription.
+  - name: comentario
+    source: demandas
+    on: [comment.created]
+    send_to: [demandas-comentarios]
+    mention: [comment.mentions]
+    embed:
+      title: "💬 {{page.title}}"
+      url: "{{page.url}}"
+      description: "{{comment.text}}"
+      color: "#99AAB5"
+      fields:
+        - { name: "Autor", value: "{{mention.comment.author}}", inline: true }

@@ -90,3 +90,26 @@ describe('mentions', () => {
     expect(msg.allowed_mentions).toEqual({ parse: [], users: [] });
   });
 });
+
+describe('comment placeholders', () => {
+  const withComment: EnrichedEvent = {
+    ...event,
+    type: 'comment.created',
+    changes: [],
+    comment: {
+      text: 'veja isso',
+      author: { name: 'Bia', email: null },
+      mentions: [{ name: 'Ana', email: 'ana@example.com', discordId: '100000000000000001' }],
+    },
+  };
+  it('renders comment text and author/mentions', () => {
+    expect(renderString('{{comment.text}}', withComment, rule)).toBe('veja isso');
+    expect(renderString('{{mention.comment.author}}', withComment, rule)).toBe('Bia');
+    expect(renderString('{{mention.comment.mentions}}', withComment, rule)).toBe('<@100000000000000001>');
+    expect(renderString('{{comment.text}}', event, rule)).toBe('—');
+  });
+  it('pings the people mentioned in the comment', () => {
+    const msg = renderMessage({ title: 't' }, withComment, { ...rule, mention: ['comment.mentions', 'comment.author'] });
+    expect(msg.content).toBe('<@100000000000000001>');
+  });
+});
