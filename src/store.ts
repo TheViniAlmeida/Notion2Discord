@@ -38,6 +38,8 @@ export class SnapshotStore {
   }
 
   saveSnapshot(page: NormalizedPage): void {
+    // Explicit fields: people carry e-mails, which must not land on disk.
+    const snapshot = { id: page.id, url: page.url, title: page.title, properties: page.properties };
     this.db
       .prepare(
         `INSERT INTO snapshots (page_id, payload, updated_at)
@@ -45,7 +47,7 @@ export class SnapshotStore {
          ON CONFLICT(page_id) DO UPDATE SET payload = excluded.payload,
            updated_at = excluded.updated_at`,
       )
-      .run(page.id, JSON.stringify(page));
+      .run(page.id, JSON.stringify(snapshot));
   }
 
   close(): void {

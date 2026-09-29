@@ -33,6 +33,21 @@ describe('loadConfig', () => {
     const bad = yamlOk.replace('source: demandas', 'source: ghost');
     expect(() => loadConfig(bad, { WH_HIST: 'x', N8N_URL: 'y' })).toThrow(/ghost/);
   });
+  it('parses people with lowercased e-mails and a rule mention list', () => {
+    const y = yamlOk
+      .replace('send_to: [historico]', 'send_to: [historico]\n    mention: [Atribuido]')
+      + 'people:\n  "Ana@Example.com": "100000000000000001"\n';
+    const cfg = loadConfig(y, { WH_HIST: 'x', N8N_URL: 'y' });
+    expect(cfg.people).toEqual({ 'ana@example.com': '100000000000000001' });
+    expect(cfg.rules[0]!.mention).toEqual(['Atribuido']);
+  });
+  it('defaults people to an empty map', () => {
+    expect(loadConfig(yamlOk, { WH_HIST: 'x', N8N_URL: 'y' }).people).toEqual({});
+  });
+  it('rejects a discord id that is not a snowflake', () => {
+    const y = yamlOk + 'people:\n  "a@example.com": "not-an-id"\n';
+    expect(() => loadConfig(y, { WH_HIST: 'x', N8N_URL: 'y' })).toThrow(/17-20 digits/);
+  });
   it('fails when a when clause has no operator', () => {
     const bad = yamlOk.replace('send_to: [historico]', 'when: { property: "Status" }\n    send_to: [historico]');
     expect(() => loadConfig(bad, { WH_HIST: 'x', N8N_URL: 'y' })).toThrow(/operator/);

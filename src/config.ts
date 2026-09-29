@@ -47,9 +47,13 @@ const rawConfigSchema = z.object({
       when: whenSchema.optional(),
       send_to: z.array(z.string()).min(1),
       embed: embedSchema.optional(),
+      // People properties whose members get pinged (message content, outside the embed).
+      mention: z.array(z.string()).optional(),
     }),
   ),
   labels: z.record(z.string(), z.string()).optional(),
+  // Notion e-mail -> Discord user id. Personal data: keep it in the host-only rules.yaml.
+  people: z.record(z.string(), z.string().regex(/^\d{17,20}$/, 'discord user id must be 17-20 digits')).optional(),
 });
 
 export type WhenCondition = z.infer<typeof whenSchema>;
@@ -61,6 +65,7 @@ export type AppConfig = {
   targets: Record<string, TargetConfig>;
   rules: Rule[];
   labels: Record<string, string>;
+  people: Record<string, string>;
 };
 
 const DEFAULT_LABELS: Record<string, string> = {
@@ -99,6 +104,9 @@ export function loadConfig(
     targets,
     rules: raw.rules,
     labels: { ...DEFAULT_LABELS, ...raw.labels },
+    people: Object.fromEntries(
+      Object.entries(raw.people ?? {}).map(([email, id]) => [email.toLowerCase(), id]),
+    ),
   };
 }
 

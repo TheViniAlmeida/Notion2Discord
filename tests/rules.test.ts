@@ -6,6 +6,7 @@ const cfg: AppConfig = {
   sources: { demandas: { database_id: 'db1' } },
   targets: { t1: { type: 'discord', url: 'u1' } },
   labels: {},
+  people: {},
   rules: [
     { name: 'all', source: 'demandas', on: ['page.created', 'page.properties_updated'], send_to: ['t1'] },
     {

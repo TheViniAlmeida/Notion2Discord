@@ -11,6 +11,7 @@ const cfg: AppConfig = {
     feed: { type: 'webhook', url: 'https://n8n/feed' },
   },
   labels: { 'page.properties_updated': 'Tarefa atualizada' },
+  people: { 'ana@example.com': '100000000000000001' },
   rules: [
     {
       name: 'done',
@@ -48,13 +49,43 @@ describe('processor', () => {
     });
     await proc(rawEvent);
     expect(send).toHaveBeenCalledTimes(2);
-    const [target1, event1, embed1] = send.mock.calls[0]!;
+    const [target1, event1, message1] = send.mock.calls[0]!;
     expect(target1).toEqual(cfg.targets['done']);
     expect(event1.changes).toEqual([
       { property: 'Status', from: 'Em andamento', to: 'Concluido' },
     ]);
-    expect(embed1).toMatchObject({ title: '✅ Pacote FLA' });
+    expect(message1!.embeds[0]).toMatchObject({ title: '✅ Pacote FLA' });
     expect(store.getSnapshot('p1')!.properties['Status']).toBe('Concluido');
+    store.close();
+  });
+  it('resolves discord ids by e-mail and pings the people of mention properties', async () => {
+    const store = new SnapshotStore(':memory:');
+    store.saveSnapshot({ ...pageV2, properties: { Status: 'Em andamento' } });
+    const send = vi.fn(async () => {});
+    const cfgMention: AppConfig = {
+      ...cfg,
+      rules: [{ ...cfg.rules[0]!, send_to: ['done'], mention: ['Atribuido'] }],
+    };
+    const page: NormalizedPage = {
+      ...pageV2,
+      people: {
+        Atribuido: [
+          { name: 'Ana', email: 'ana@example.com' },
+          { name: 'Sem Mapa', email: 'nobody@example.com' },
+        ],
+      },
+    };
+    const proc = createProcessor({
+      config: cfgMention,
+      store,
+      notion: { fetchPage: async () => page },
+      send,
+    });
+    await proc(rawEvent);
+    const message = send.mock.calls[0]![2]!;
+    expect(message.content).toBe('<@100000000000000001>');
+    expect(message.allowed_mentions).toEqual({ parse: [], users: ['100000000000000001'] });
+    expect(store.getSnapshot('p1')).not.toHaveProperty('people');
     store.close();
   });
   it('a failing target does not block the others nor rethrow', async () => {

@@ -27,6 +27,13 @@ targets:
   #   type: webhook
   #   url_env: N8N_WEBHOOK_DEMANDAS
 
+# Notion e-mail -> Discord user id, used by `mention:` and {{mention.<Prop>}}.
+# Personal data: fill it only in the host's config/rules.yaml (gitignored), never here.
+# Discord id: User Settings > Advanced > Developer Mode, then right-click the user > Copy User ID.
+# The integration needs "Read user information including email addresses" in Notion.
+people:
+  "ana@example.com": "100000000000000001"
+
 rules:
   - name: historico-tudo
     source: demandas
@@ -38,12 +45,13 @@ rules:
       color: "#5865F2"
       fields:
         - { name: "Status", value: "{{prop.Status}}", inline: true }
-        - { name: "Atribuido", value: "{{prop.Atribuido}}", inline: true }
+        - { name: "Atribuido", value: "{{mention.Atribuido}}", inline: true }
 
   - name: tarefa-adicionada
     source: demandas
     on: [page.created]
     send_to: [demandas-adicionadas]
+    mention: [Atribuido]
     embed:
       title: "🆕 {{page.title}}"
       url: "{{page.url}}"
@@ -54,6 +62,7 @@ rules:
     on: [page.properties_updated]
     when: { property: "Status", changed_to: "Em andamento" }
     send_to: [demandas-emandamento]
+    mention: [Atribuido]
     embed:
       title: "▶️ {{page.title}}"
       url: "{{page.url}}"
@@ -77,10 +86,11 @@ rules:
     on: [page.properties_updated]
     when: { property: "Status", changed_to: "Concluido" }
     send_to: [demandas-finalizadas]
+    mention: [Atribuido]
     embed:
       title: "✅ {{page.title}}"
       url: "{{page.url}}"
       color: "#57F287"
       fields:
         - { name: "Status", value: "{{change.from}} → {{change.to}}", inline: true }
-        - { name: "Atribuido", value: "{{prop.Atribuido}}", inline: true }
+        - { name: "Atribuido", value: "{{mention.Atribuido}}", inline: true }

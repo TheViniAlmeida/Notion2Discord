@@ -1,8 +1,21 @@
 import type { TargetConfig } from './config.js';
-import type { DiscordEmbed } from './template.js';
+import type { DiscordMessage } from './template.js';
 import type { EnrichedEvent } from './types.js';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// E-mails are only needed to resolve mentions: they never leave the service.
+function withoutEmails(event: EnrichedEvent): EnrichedEvent {
+  const people = event.page.people;
+  if (!people) return event;
+  const stripped = Object.fromEntries(
+    Object.entries(people).map(([prop, list]) => [
+      prop,
+      list.map(({ name, discordId }) => ({ name, email: null, discordId })),
+    ]),
+  );
+  return { ...event, page: { ...event.page, people: stripped } };
+}
 
 // The queue is serial: a target that never answers must not stall every later event.
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -11,11 +24,11 @@ const MAX_RETRY_AFTER_S = 30;
 export async function sendToTarget(
   target: TargetConfig,
   event: EnrichedEvent,
-  embed: DiscordEmbed | null,
+  message: DiscordMessage | null,
   fetchFn: typeof fetch = fetch,
 ): Promise<void> {
   const body =
-    target.type === 'discord' ? JSON.stringify({ embeds: [embed] }) : JSON.stringify(event);
+    target.type === 'discord' ? JSON.stringify(message) : JSON.stringify(withoutEmails(event));
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await fetchFn(target.url, {

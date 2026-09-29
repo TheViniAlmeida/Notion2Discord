@@ -25,4 +25,10 @@ describe('SnapshotStore', () => {
     expect(s.getSnapshot('p1')!.properties['Status']).toBe('Concluido');
     s.close();
   });
+  it('never persists people (e-mails)', () => {
+    const s = new SnapshotStore(':memory:');
+    s.saveSnapshot({ ...page, people: { Atribuido: [{ name: 'A', email: 'a@example.com' }] } });
+    expect(s.getSnapshot('p1')).toEqual(page);
+    s.close();
+  });
 });

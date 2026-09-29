@@ -54,8 +54,31 @@ rules:
 ```
 
 Condições `when`: `changed_to`, `changed_from`, `equals`, `changed`. Placeholders:
-`{{page.title}}`, `{{page.url}}`, `{{event.label}}`, `{{prop.<Nome>}}`, `{{change.from}}`,
-`{{change.to}}`, `{{changes.summary}}`.
+`{{page.title}}`, `{{page.url}}`, `{{event.label}}`, `{{prop.<Nome>}}`, `{{mention.<Nome>}}`,
+`{{change.from}}`, `{{change.to}}`, `{{changes.summary}}`.
+
+### Marcar pessoas no Discord
+
+A seção `people` liga o e-mail da pessoa no Notion ao ID dela no Discord. Uma regra com
+`mention: [Atribuido]` marca (com notificação) quem está nessa propriedade do tipo *people*:
+
+```yaml
+people:
+  "ana@example.com": "100000000000000001"
+
+rules:
+  - name: tarefa-finalizada
+    mention: [Atribuido]
+    # ...
+```
+
+- A menção vai no texto da mensagem, porque o Discord não notifica menção dentro de embed.
+  `{{mention.<Nome>}}` mostra a menção clicável no embed, sem notificar, e cai no nome de quem
+  não está mapeado. O Discord só renderiza menção na `description` e no `value` dos fields.
+- `allowed_mentions` só libera os IDs da regra: `@everyone` num título não dispara nada.
+- A integração precisa de *Read user information including email addresses* no Notion.
+- E-mail é dado pessoal: preencha `people` só no `config/rules.yaml` do host (gitignored). O
+  snapshot em SQLite não guarda e-mails, e targets `webhook` recebem as pessoas sem e-mail.
 
 ## Rodando
 

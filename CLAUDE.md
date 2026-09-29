@@ -52,8 +52,8 @@ YAML. Genérico e multi-database: a semântica dos canais é configuração, nun
 | `src/store.ts` | SQLite: snapshots de página + dedup de eventos |
 | `src/diff.ts` | mudanças `{property, from, to}` entre snapshot e página atual |
 | `src/rules.ts` | matching: source + `on` + `when` (`changed_to`/`changed_from`/`equals`/`changed`) |
-| `src/template.ts` | placeholders `{{...}}` + limites de embed do Discord |
-| `src/senders.ts` | POST discord (embed) e webhook genérico (JSON) |
+| `src/template.ts` | placeholders `{{...}}` + limites de embed + menções (`allowed_mentions`) |
+| `src/senders.ts` | POST discord (mensagem com embed) e webhook genérico (JSON) |
 | `src/processor.ts` | orquestra fetch → diff → rules → send |
 | `config/` | `rules.example.yaml` (versionado) / `rules.yaml` (local) |
 | `tests/` | vitest, um arquivo por módulo |

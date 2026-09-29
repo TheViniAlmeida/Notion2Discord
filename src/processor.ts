@@ -4,8 +4,8 @@ import type { NotionClient } from './notion.js';
 import { matchRules } from './rules.js';
 import { sendToTarget } from './senders.js';
 import type { SnapshotStore } from './store.js';
-import { renderEmbed } from './template.js';
-import type { EnrichedEvent, NotionEvent } from './types.js';
+import { renderMessage } from './template.js';
+import type { EnrichedEvent, NormalizedPage, NotionEvent } from './types.js';
 
 type Logger = {
   debug: (obj: object, msg: string) => void;
@@ -29,6 +29,17 @@ function resolveSource(config: AppConfig, raw: NotionEvent): string | null {
   return null;
 }
 
+function withDiscordIds(page: NormalizedPage, people: Record<string, string>): NormalizedPage {
+  if (!page.people) return page;
+  const resolved = Object.fromEntries(
+    Object.entries(page.people).map(([prop, list]) => [
+      prop,
+      list.map((p) => ({ ...p, discordId: p.email ? people[p.email] : undefined })),
+    ]),
+  );
+  return { ...page, people: resolved };
+}
+
 export function createProcessor(deps: {
   config: AppConfig;
   store: SnapshotStore;
@@ -49,12 +60,13 @@ export function createProcessor(deps: {
 
     const isDeletion = raw.type === 'page.deleted';
     const prev = store.getSnapshot(raw.entity.id);
-    const page = isDeletion ? prev : await notion.fetchPage(raw.entity.id);
-    if (!page) {
+    const fetched = isDeletion ? prev : await notion.fetchPage(raw.entity.id);
+    if (!fetched) {
       log.warn({ eventId: raw.id, type: raw.type }, 'deletion without snapshot, discarded');
       return;
     }
 
+    const page = withDiscordIds(fetched, config.people);
     const changes = isDeletion ? [] : diffProperties(prev, page);
     if (!isDeletion) store.saveSnapshot(page);
 
@@ -82,9 +94,9 @@ export function createProcessor(deps: {
           log.warn({ rule: rule.name, target: targetKey }, 'discord target without embed template, skipped');
           continue;
         }
-        const embed = target.type === 'discord' ? renderEmbed(rule.embed!, event, rule) : null;
+        const message = target.type === 'discord' ? renderMessage(rule.embed!, event, rule) : null;
         try {
-          await send(target, event, embed);
+          await send(target, event, message);
         } catch (err) {
           log.error(
             { rule: rule.name, target: targetKey, eventId: raw.id, err: (err as Error).message },

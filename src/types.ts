@@ -9,11 +9,15 @@ export type NotionEvent = {
   };
 };
 
+export type PagePerson = { name: string; email: string | null; discordId?: string };
+
 export type NormalizedPage = {
   id: string;
   url: string;
   title: string;
   properties: Record<string, string | null>;
+  // People properties with e-mails, for mentions. In memory only: never persisted.
+  people?: Record<string, PagePerson[]>;
 };
 
 export type PropertyChange = {

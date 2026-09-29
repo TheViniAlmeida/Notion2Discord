@@ -10,6 +10,12 @@ export type DiscordEmbed = {
   timestamp?: string;
 };
 
+export type DiscordMessage = {
+  content?: string;
+  embeds: DiscordEmbed[];
+  allowed_mentions: { parse: string[]; users: string[] };
+};
+
 const EMPTY = '—';
 
 function truncate(s: string, max: number): string {
@@ -40,6 +46,14 @@ export function renderString(tpl: string, event: EnrichedEvent, rule: Rule): str
     if (key === 'change.to') return change?.to ?? EMPTY;
     if (key === 'changes.summary') return changesSummary(event);
     if (key.startsWith('prop.')) return event.page.properties[key.slice(5)] ?? EMPTY;
+    if (key.startsWith('mention.')) {
+      const prop = key.slice(8);
+      const people = event.page.people?.[prop];
+      // Snapshots (page.deleted) have no people: fall back to the plain names.
+      if (!people) return event.page.properties[prop] ?? EMPTY;
+      if (people.length === 0) return EMPTY;
+      return people.map((p) => (p.discordId ? `<@${p.discordId}>` : p.name)).join(', ');
+    }
     return EMPTY;
   });
 }
@@ -63,4 +77,22 @@ export function renderEmbed(
     }));
   }
   return embed;
+}
+
+export function mentionIds(rule: Rule, event: EnrichedEvent): string[] {
+  const ids = (rule.mention ?? []).flatMap((prop) =>
+    (event.page.people?.[prop] ?? []).map((p) => p.discordId),
+  );
+  return [...new Set(ids.filter((id): id is string => Boolean(id)))];
+}
+
+export function renderMessage(tpl: EmbedTemplate, event: EnrichedEvent, rule: Rule): DiscordMessage {
+  const users = mentionIds(rule, event);
+  // parse: [] disables @everyone/@here/role pings from page text; only listed users are pinged.
+  const message: DiscordMessage = {
+    embeds: [renderEmbed(tpl, event, rule)],
+    allowed_mentions: { parse: [], users },
+  };
+  if (users.length > 0) message.content = users.map((id) => `<@${id}>`).join(' ');
+  return message;
 }

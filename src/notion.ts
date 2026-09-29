@@ -1,4 +1,4 @@
-import type { NormalizedPage } from './types.js';
+import type { NormalizedPage, PagePerson } from './types.js';
 
 const NOTION_VERSION = '2025-09-03';
 const API_BASE = 'https://api.notion.com/v1';
@@ -52,14 +52,22 @@ export function normalizePage(raw: unknown): NormalizedPage {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const page = raw as any;
   const properties: Record<string, string | null> = {};
+  const people: Record<string, PagePerson[]> = {};
   let title = '';
   for (const [name, prop] of Object.entries(page.properties ?? {})) {
     const value = normalizeProperty(prop);
     properties[name] = value;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((prop as any)?.type === 'title') title = value ?? '';
+    const p = prop as any;
+    if (p?.type === 'title') title = value ?? '';
+    if (p?.type === 'people') {
+      people[name] = (p.people ?? []).map((u: { name?: string; person?: { email?: string } }) => ({
+        name: u.name ?? 'unknown',
+        email: u.person?.email?.toLowerCase() ?? null,
+      }));
+    }
   }
-  return { id: page.id, url: page.url ?? '', title, properties };
+  return { id: page.id, url: page.url ?? '', title, properties, people };
 }
 
 export class NotionClient {

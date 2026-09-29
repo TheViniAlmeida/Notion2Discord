@@ -10,7 +10,7 @@ const event: EnrichedEvent = {
   changes: [],
   page: { id: 'p', url: 'u', title: 'T', properties: {} },
 };
-const embed = { title: 'T' };
+const embed = { embeds: [{ title: 'T' }], allowed_mentions: { parse: [], users: [] } };
 
 function fetchSeq(responses: Response[]): typeof fetch {
   const fn = vi.fn(async () => responses.shift()!);
@@ -26,7 +26,7 @@ describe('sendToTarget', () => {
     }) as typeof fetch;
     await sendToTarget({ type: 'discord', url: 'https://d/wh' }, event, embed, fetchFn);
     expect(calls[0]!.url).toBe('https://d/wh');
-    expect(JSON.parse(calls[0]!.body)).toEqual({ embeds: [embed] });
+    expect(JSON.parse(calls[0]!.body)).toEqual(embed);
   });
   it('posts the enriched event as JSON to webhook targets', async () => {
     const calls: string[] = [];
@@ -36,6 +36,25 @@ describe('sendToTarget', () => {
     }) as typeof fetch;
     await sendToTarget({ type: 'webhook', url: 'https://n8n/wh' }, event, null, fetchFn);
     expect(JSON.parse(calls[0]!)).toMatchObject({ type: 'page.created' });
+  });
+  it('strips e-mails from the JSON sent to webhook targets', async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (_u: any, init: any) => {
+      calls.push(init.body);
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+    const withPeople: EnrichedEvent = {
+      ...event,
+      page: {
+        ...event.page,
+        people: { Atribuido: [{ name: 'Ana', email: 'ana@example.com', discordId: '100000000000000001' }] },
+      },
+    };
+    await sendToTarget({ type: 'webhook', url: 'https://n8n/wh' }, withPeople, null, fetchFn);
+    expect(calls[0]).not.toContain('ana@example.com');
+    expect(JSON.parse(calls[0]!).page.people.Atribuido[0]).toEqual({
+      name: 'Ana', email: null, discordId: '100000000000000001',
+    });
   });
   it('retries once after a 429 honoring retry_after', async () => {
     vi.useFakeTimers();

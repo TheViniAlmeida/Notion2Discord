@@ -12,7 +12,7 @@ const rawPage = {
     Prazo: { type: 'date', date: { start: '2026-09-30' } },
     Feito: { type: 'checkbox', checkbox: false },
     ID: { type: 'number', number: 30 },
-    Pessoas: { type: 'people', people: [{ name: 'Marcos' }] },
+    Pessoas: { type: 'people', people: [{ name: 'Marcos', person: { email: 'Marcos@Example.com' } }, { name: 'Bot' }] },
     Nota: { type: 'rich_text', rich_text: [] },
     Link: { type: 'url', url: null },
   },
@@ -31,9 +31,20 @@ describe('normalizePage', () => {
       Prazo: '2026-09-30',
       Feito: 'false',
       ID: '30',
-      Pessoas: 'Marcos',
+      Pessoas: 'Marcos, Bot',
       Nota: null,
       Link: null,
+    });
+  });
+});
+
+describe('normalizePage people', () => {
+  it('keeps people with lowercased e-mails for mentions', () => {
+    expect(normalizePage(rawPage).people).toEqual({
+      Pessoas: [
+        { name: 'Marcos', email: 'marcos@example.com' },
+        { name: 'Bot', email: null },
+      ],
     });
   });
 });
