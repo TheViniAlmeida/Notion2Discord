@@ -122,6 +122,19 @@ describe('NotionClient.fetchComment', () => {
   });
 });
 
+describe('normalizePage property ids', () => {
+  it('maps property names to decoded ids', () => {
+    const page = normalizePage({
+      id: 'p',
+      properties: {
+        Status: { id: '%3AUPp', type: 'status', status: { name: 'X' } },
+        Demanda: { id: 'title', type: 'title', title: [] },
+      },
+    });
+    expect(page.propertyIds).toEqual({ Status: ':UPp', Demanda: 'title' });
+  });
+});
+
 describe('normalizePage parent', () => {
   it('exposes the parent database id', () => {
     const page = normalizePage({ id: 'p', parent: { type: 'data_source_id', data_source_id: 'ds', database_id: 'db1' }, properties: {} });

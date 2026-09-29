@@ -21,6 +21,8 @@ export type NormalizedPage = {
   people?: Record<string, PagePerson[]>;
   // Database the page belongs to; resolves the source of comment events.
   parentDatabaseId?: string | null;
+  // Property name -> decoded Notion property id, to read data.updated_properties.
+  propertyIds?: Record<string, string>;
 };
 
 export type CommentInfo = {

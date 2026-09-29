@@ -99,6 +99,7 @@ rules:
     source: demandas
     on: [page.properties_updated]
     send_to: [demandas-atualizadas]
+    ignore: ["Feito?"]          # control checkbox: never worth an "updated" message
     embed:
       author: { name: "✏️ Demanda atualizada" }
       title: "{{page.title}}"

@@ -53,6 +53,8 @@ const rawConfigSchema = z.object({
       embed: embedSchema.optional(),
       // People properties whose members get pinged (message content, outside the embed).
       mention: z.array(z.string()).optional(),
+      // Properties this rule never sees as changes (summary, when, change.*).
+      ignore: z.array(z.string()).optional(),
     }),
   ),
   labels: z.record(z.string(), z.string()).optional(),

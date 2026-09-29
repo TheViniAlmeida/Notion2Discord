@@ -159,6 +159,52 @@ describe('processor', () => {
     expect(send).not.toHaveBeenCalled();
     store.close();
   });
+  it('without a snapshot, keeps only the properties the event says were updated', async () => {
+    const store = new SnapshotStore(':memory:');
+    const send = vi.fn(async () => {});
+    const page: NormalizedPage = {
+      ...pageV2,
+      properties: { Status: 'Concluido', ID: '58', Demanda: 'Pacote FLA' },
+      propertyIds: { Status: ':UPp', ID: 'abc', Demanda: 'title' },
+    };
+    const proc = createProcessor({
+      config: cfg,
+      store,
+      notion: { fetchPage: async () => page, fetchComment: vi.fn() },
+      send,
+    });
+    await proc({ ...rawEvent, data: { ...rawEvent.data!, updated_properties: ['%3AUPp'] } });
+    expect(send.mock.calls[0]![1].changes).toEqual([{ property: 'Status', from: null, to: 'Concluido' }]);
+    store.close();
+  });
+  it('without a snapshot nor updated_properties, keeps every filled property', async () => {
+    const store = new SnapshotStore(':memory:');
+    const send = vi.fn(async () => {});
+    const page: NormalizedPage = { ...pageV2, properties: { Status: 'Concluido', ID: '58' }, propertyIds: { Status: 's', ID: 'i' } };
+    const cfgAll: AppConfig = { ...cfg, rules: [{ name: 'upd', source: 'demandas', on: ['page.properties_updated'], send_to: ['feed'] }] };
+    const proc = createProcessor({ config: cfgAll, store, notion: { fetchPage: async () => page, fetchComment: vi.fn() }, send });
+    await proc({ ...rawEvent, data: { parent: rawEvent.data!.parent! } });
+    expect(send.mock.calls[0]![1].changes.map((c) => c.property)).toEqual(['Status', 'ID']);
+    store.close();
+  });
+  it('drops ignored properties and skips a rule left without changes', async () => {
+    const store = new SnapshotStore(':memory:');
+    store.saveSnapshot({ ...pageV2, properties: { Status: 'Concluido', 'Feito?': 'false' } });
+    const send = vi.fn(async () => {});
+    const cfgIgnore: AppConfig = {
+      ...cfg,
+      rules: [{ name: 'upd', source: 'demandas', on: ['page.properties_updated'], send_to: ['feed'], ignore: ['Feito?'] }],
+    };
+    const proc = createProcessor({
+      config: cfgIgnore,
+      store,
+      notion: { fetchPage: async () => ({ ...pageV2, properties: { Status: 'Concluido', 'Feito?': 'true' } }), fetchComment: vi.fn() },
+      send,
+    });
+    await proc(rawEvent);
+    expect(send).not.toHaveBeenCalled();
+    store.close();
+  });
   it('a failing target does not block the others nor rethrow', async () => {
     const store = new SnapshotStore(':memory:');
     store.saveSnapshot({ ...pageV2, properties: { Status: 'Em andamento' } });

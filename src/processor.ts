@@ -1,11 +1,11 @@
 import type { AppConfig } from './config.js';
 import { diffProperties } from './diff.js';
-import type { NotionClient } from './notion.js';
-import { matchRules } from './rules.js';
+import { decodePropertyId, type NotionClient } from './notion.js';
+import { eventForRule, matchRules } from './rules.js';
 import { sendToTarget } from './senders.js';
 import type { SnapshotStore } from './store.js';
 import { renderMessage } from './template.js';
-import type { EnrichedEvent, NormalizedPage, NotionEvent, PagePerson } from './types.js';
+import type { EnrichedEvent, NormalizedPage, NotionEvent, PagePerson, PropertyChange } from './types.js';
 
 type Logger = {
   debug: (obj: object, msg: string) => void;
@@ -43,6 +43,25 @@ function withDiscordIds(page: NormalizedPage, people: Record<string, string>): N
   return { ...page, people: resolved };
 }
 
+// Without a snapshot every filled property diffs as "null -> value". For property updates the
+// event says which properties changed: keep only those instead of dumping the whole page.
+function onlyUpdated(
+  changes: PropertyChange[],
+  prev: NormalizedPage | null,
+  page: NormalizedPage,
+  raw: NotionEvent,
+): PropertyChange[] {
+  const updated = raw.data?.updated_properties;
+  if (prev || raw.type !== 'page.properties_updated' || !updated?.length || !page.propertyIds) {
+    return changes;
+  }
+  const ids = new Set(updated.map(decodePropertyId));
+  return changes.filter((c) => {
+    const id = page.propertyIds![c.property];
+    return id !== undefined && ids.has(id);
+  });
+}
+
 export function createProcessor(deps: {
   config: AppConfig;
   store: SnapshotStore;
@@ -70,9 +89,10 @@ export function createProcessor(deps: {
           log.warn({ rule: rule.name, target: targetKey }, 'discord target without embed template, skipped');
           continue;
         }
-        const message = target.type === 'discord' ? renderMessage(rule.embed!, event, rule) : null;
+        const view = eventForRule(rule, event);
+        const message = target.type === 'discord' ? renderMessage(rule.embed!, view, rule) : null;
         try {
-          await send(target, event, message);
+          await send(target, view, message);
         } catch (err) {
           log.error(
             { rule: rule.name, target: targetKey, eventId, err: (err as Error).message },
@@ -135,7 +155,7 @@ export function createProcessor(deps: {
     }
 
     const page = withDiscordIds(fetched, config.people);
-    const changes = isDeletion ? [] : diffProperties(prev, page);
+    const changes = isDeletion ? [] : onlyUpdated(diffProperties(prev, page), prev, page, raw);
     if (!isDeletion) store.saveSnapshot(page);
 
     await deliver(

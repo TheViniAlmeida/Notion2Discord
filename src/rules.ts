@@ -16,11 +16,21 @@ function whenMatches(when: WhenCondition, event: EnrichedEvent): boolean {
   return true;
 }
 
+// The event as a rule sees it: changes to its ignored properties are dropped.
+export function eventForRule(rule: Rule, event: EnrichedEvent): EnrichedEvent {
+  if (!rule.ignore?.length) return event;
+  const ignored = new Set(rule.ignore);
+  return { ...event, changes: event.changes.filter((c) => !ignored.has(c.property)) };
+}
+
 export function matchRules(config: AppConfig, event: EnrichedEvent): Rule[] {
   return config.rules.filter((rule) => {
     if (rule.source !== event.sourceKey) return false;
     if (!rule.on.includes(event.type)) return false;
-    if (rule.when && !whenMatches(rule.when, event)) return false;
+    const view = eventForRule(rule, event);
+    // A property update with nothing (left) to show is noise, not a notification.
+    if (view.type === 'page.properties_updated' && view.changes.length === 0) return false;
+    if (rule.when && !whenMatches(rule.when, view)) return false;
     return true;
   });
 }

@@ -41,8 +41,10 @@ O n8n **não** recebe webhook do Notion. Ele recebe do Notion2Discord, por um ta
 | `comment` | só em `comment.created`: `{ text, author, mentions }`, pessoas no mesmo formato de `page.people` (sem e-mail) |
 | `changes` | só o que mudou desde o último snapshot, com `from` e `to`; vazio em `page.deleted` |
 
-Numa página vista pela primeira vez, todas as propriedades preenchidas aparecem em
-`changes` com `from: null`.
+Numa página vista pela primeira vez, `changes` traz com `from: null` só as propriedades que o
+evento aponta como alteradas (`page.properties_updated`) ou todas as preenchidas (demais
+eventos). Um `page.properties_updated` sem mudança não é enviado, e `changes` já sai sem as
+propriedades do `ignore` da regra.
 
 Entrega: o serviço tenta de novo uma vez em `429` (respeitando `retry_after`) e em `5xx`;
 um `4xx` do n8n é registrado no log e o evento é descartado para aquele target. Cada

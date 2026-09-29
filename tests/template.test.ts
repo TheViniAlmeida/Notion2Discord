@@ -37,7 +37,7 @@ describe('renderString', () => {
   });
   it('renders a summary of all changes', () => {
     expect(renderString('{{changes.summary}}', event, rule))
-      .toBe('Status: Em andamento → Concluido\nPrazo: — → 2026-09-30');
+      .toBe('**Status:** Em andamento → **Concluido**\n**Prazo:** — → **2026-09-30**');
   });
   it('falls back to em dash for unknown values', () => {
     expect(renderString('{{prop.Nada}}', event, rule)).toBe('—');

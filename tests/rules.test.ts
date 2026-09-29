@@ -51,6 +51,14 @@ function ev(type: string, changes: { property: string; from: string | null; to: 
 }
 
 describe('matchRules', () => {
+  it('does not match a property update without changes, not even equals', () => {
+    const withEquals: AppConfig = {
+      ...cfg,
+      rules: [{ name: 'eq', source: 'demandas', on: ['page.properties_updated'], when: { property: 'Status', equals: 'Concluido' }, send_to: ['t1'] }],
+    };
+    expect(matchRules(cfg, ev('page.properties_updated', []))).toEqual([]);
+    expect(matchRules(withEquals, ev('page.properties_updated', []))).toEqual([]);
+  });
   it('matches by event type when there is no when', () => {
     const rules = matchRules(cfg, ev('page.created', []));
     expect(rules.map((r) => r.name)).toEqual(['all', 'other-source']);

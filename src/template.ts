@@ -42,7 +42,7 @@ function primaryChange(event: EnrichedEvent, rule: Rule): PropertyChange | undef
 function changesSummary(event: EnrichedEvent): string {
   if (event.changes.length === 0) return EMPTY;
   return event.changes
-    .map((c) => `${c.property}: ${c.from ?? EMPTY} → ${c.to ?? EMPTY}`)
+    .map((c) => `**${c.property}:** ${c.from ?? EMPTY} → **${c.to ?? EMPTY}**`)
     .join('\n');
 }
 

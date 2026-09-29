@@ -67,10 +67,15 @@ rules:
     when: { property: "Status", changed_to: "Concluido" }   # opcional
     send_to: [canal-x]                     # chaves de targets (lista)
     mention: [Atribuido, "Criado por"]     # opcional: quem notificar
+    ignore: ["Feito?"]                     # opcional: propriedades que esta regra não vê mudar
     embed: { ... }                         # obrigatório para targets discord
 ```
 
 Todas as regras que casarem com o evento disparam (não há "primeira que casar").
+
+**`ignore`** tira as propriedades listadas das mudanças que a regra enxerga (`when`,
+`{{change.*}}`, `{{changes.summary}}`). Um `page.properties_updated` que, sem elas, não tem
+mudança nenhuma não dispara a regra — útil para checkbox de controle, fórmulas de apoio etc.
 
 **Eventos (`on`):**
 
@@ -96,7 +101,12 @@ Todas as regras que casarem com o evento disparam (não há "primeira que casar"
 Operadores combinam (E): `{ property: "Status", changed_from: "Em Revisão", changed_to: "Concluido" }`.
 Os valores são o texto exato da opção no Notion, com acento e maiúsculas.
 
-Numa página vista pela primeira vez (sem snapshot), toda propriedade preenchida conta como
+Um `page.properties_updated` sem mudança (depois do `ignore`) não dispara regra nenhuma —
+inclusive regra com `equals`, que nesse tipo de evento só vale quando algo mudou.
+
+Página vista pela primeira vez (sem snapshot): num `page.properties_updated`, só contam as
+propriedades que o próprio evento aponta como alteradas (`updated_properties`), com
+`from: null`; nos demais eventos (ex.: `page.created`), toda propriedade preenchida conta como
 mudança `null → valor`.
 
 ### `labels` — nome legível de cada evento
@@ -122,7 +132,7 @@ Aceitam espaços e acentos: `{{prop.Esforço necessário}}`.
 | `{{prop.<Nome>}}` | valor da propriedade como texto |
 | `{{mention.<Nome>}}` | pessoas da propriedade como menção clicável (sem notificar); nome se não mapeada |
 | `{{change.from}}`, `{{change.to}}` | mudança da propriedade do `when` (ou a primeira mudança) |
-| `{{changes.summary}}` | todas as mudanças, uma por linha: `Prop: de → para` |
+| `{{changes.summary}}` | todas as mudanças, uma por linha: `**Prop:** de → **para**` |
 | `{{comment.text}}` | texto do comentário |
 | `{{mention.comment.author}}`, `{{mention.comment.mentions}}` | autor e mencionados do comentário |
 

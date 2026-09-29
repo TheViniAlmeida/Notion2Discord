@@ -60,17 +60,28 @@ function normalizeProperty(prop: any): string | null {
   }
 }
 
+// Property ids come URL-encoded ("%3AUPp") in some payloads and decoded in others.
+export function decodePropertyId(id: string): string {
+  try {
+    return decodeURIComponent(id);
+  } catch {
+    return id;
+  }
+}
+
 export function normalizePage(raw: unknown): NormalizedPage {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const page = raw as any;
   const properties: Record<string, string | null> = {};
   const people: Record<string, PagePerson[]> = {};
+  const propertyIds: Record<string, string> = {};
   let title = '';
   for (const [name, prop] of Object.entries(page.properties ?? {})) {
     const value = normalizeProperty(prop);
     properties[name] = value;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = prop as any;
+    if (typeof p?.id === 'string') propertyIds[name] = decodePropertyId(p.id);
     if (p?.type === 'title') title = value ?? '';
     const users = usersOf(p);
     if (users) {
@@ -87,6 +98,7 @@ export function normalizePage(raw: unknown): NormalizedPage {
     properties,
     people,
     parentDatabaseId: page.parent?.database_id ?? null,
+    propertyIds,
   };
 }
 
