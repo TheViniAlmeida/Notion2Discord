@@ -65,7 +65,7 @@ function onlyUpdated(
 export function createProcessor(deps: {
   config: AppConfig;
   store: SnapshotStore;
-  notion: Pick<NotionClient, 'fetchPage' | 'fetchComment'>;
+  notion: Pick<NotionClient, 'fetchPage' | 'fetchComment' | 'fetchUser'>;
   send?: typeof sendToTarget;
   log?: Logger;
 }): (raw: NotionEvent) => Promise<void> {
@@ -101,6 +101,19 @@ export function createProcessor(deps: {
         }
       }
     }
+  }
+
+  // Only people (not bots or integrations) can be mapped to Discord; a user the integration
+  // cannot read is left out rather than shown as "unknown".
+  async function authorsOf(raw: NotionEvent): Promise<PagePerson[]> {
+    const list = Array.isArray(raw.authors) ? raw.authors : [];
+    const ids = [...new Set(list.filter((a) => a?.type === 'person' && typeof a.id === 'string').map((a) => a.id))];
+    const authors: PagePerson[] = [];
+    for (const id of ids) {
+      const person = await notion.fetchUser(id, '');
+      if (person.name) authors.push(withDiscordId(person, config.people));
+    }
+    return authors;
   }
 
   // Comments leave page snapshots untouched: they are not property changes.
@@ -156,18 +169,21 @@ export function createProcessor(deps: {
 
     const page = withDiscordIds(fetched, config.people);
     const changes = isDeletion ? [] : onlyUpdated(diffProperties(prev, page), prev, page, raw);
+    const event: EnrichedEvent = {
+      type: raw.type,
+      label: config.labels[raw.type] ?? raw.type,
+      sourceKey,
+      page,
+      changes,
+      timestamp: raw.timestamp,
+    };
+    // Resolve authors before saving the snapshot: a 429/5xx from /users rethrows and the queue
+    // retries with the same diff. Skipped when no rule matches, to spare API calls.
+    if (raw.authors?.length && matchRules(config, event).length > 0) {
+      event.authors = await authorsOf(raw);
+    }
     if (!isDeletion) store.saveSnapshot(page);
 
-    await deliver(
-      {
-        type: raw.type,
-        label: config.labels[raw.type] ?? raw.type,
-        sourceKey,
-        page,
-        changes,
-        timestamp: raw.timestamp,
-      },
-      raw.id,
-    );
+    await deliver(event, raw.id);
   };
 }

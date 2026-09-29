@@ -240,6 +240,75 @@ describe('processor', () => {
     expect(send).not.toHaveBeenCalled();
     store.close();
   });
+  it('resolves event authors (people only, deduplicated) before delivering', async () => {
+    const store = new SnapshotStore(':memory:');
+    store.saveSnapshot({ ...pageV2, properties: { Status: 'Em andamento' } });
+    const send = vi.fn(async () => {});
+    const fetchUser = vi.fn(async () => ({ name: 'Ana', email: 'ana@example.com' }));
+    const proc = createProcessor({
+      config: cfg,
+      store,
+      notion: { fetchPage: async () => pageV2, fetchComment: vi.fn(), fetchUser },
+      send,
+    });
+    await proc({
+      ...rawEvent,
+      authors: [{ id: 'u1', type: 'person' }, { id: 'u1', type: 'person' }, { id: 'b1', type: 'bot' }],
+    });
+    expect(fetchUser).toHaveBeenCalledOnce();
+    expect(fetchUser).toHaveBeenCalledWith('u1', '');
+    expect(send.mock.calls[0]![1].authors).toEqual([
+      { name: 'Ana', email: 'ana@example.com', discordId: '100000000000000001' },
+    ]);
+    store.close();
+  });
+  it('leaves out authors the integration cannot read', async () => {
+    const store = new SnapshotStore(':memory:');
+    store.saveSnapshot({ ...pageV2, properties: { Status: 'Em andamento' } });
+    const send = vi.fn(async () => {});
+    const proc = createProcessor({
+      config: cfg,
+      store,
+      notion: { fetchPage: async () => pageV2, fetchComment: vi.fn(), fetchUser: async () => ({ name: '', email: null }) },
+      send,
+    });
+    await proc({ ...rawEvent, authors: [{ id: 'u9', type: 'person' }] });
+    expect(send.mock.calls[0]![1].authors).toEqual([]);
+    store.close();
+  });
+  it('skips the /users call when no rule matches', async () => {
+    const store = new SnapshotStore(':memory:');
+    store.saveSnapshot(pageV2); // same status: "done" rule does not match
+    const fetchUser = vi.fn();
+    const proc = createProcessor({
+      config: cfg,
+      store,
+      notion: { fetchPage: async () => pageV2, fetchComment: vi.fn(), fetchUser },
+      send: vi.fn(async () => {}),
+    });
+    await proc({ ...rawEvent, authors: [{ id: 'u1', type: 'person' }] });
+    expect(fetchUser).not.toHaveBeenCalled();
+    store.close();
+  });
+  it('keeps the old snapshot when /users fails, so the queue retry sees the same diff', async () => {
+    const store = new SnapshotStore(':memory:');
+    store.saveSnapshot({ ...pageV2, properties: { Status: 'Em andamento' } });
+    const send = vi.fn(async () => {});
+    const proc = createProcessor({
+      config: cfg,
+      store,
+      notion: {
+        fetchPage: async () => pageV2,
+        fetchComment: vi.fn(),
+        fetchUser: vi.fn(async () => { throw new Error('Notion API error 429 fetching user'); }),
+      },
+      send,
+    });
+    await expect(proc({ ...rawEvent, authors: [{ id: 'u1', type: 'person' }] })).rejects.toThrow(/429/);
+    expect(store.getSnapshot('p1')!.properties['Status']).toBe('Em andamento');
+    expect(send).not.toHaveBeenCalled();
+    store.close();
+  });
   it('uses the snapshot for page.deleted events', async () => {
     const store = new SnapshotStore(':memory:');
     store.saveSnapshot(pageV2);

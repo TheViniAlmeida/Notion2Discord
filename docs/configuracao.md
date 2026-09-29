@@ -131,10 +131,12 @@ Aceitam espaços e acentos: `{{prop.Esforço necessário}}`.
 | `{{event.type}}`, `{{event.label}}` | tipo do evento e o rótulo de `labels` |
 | `{{prop.<Nome>}}` | valor da propriedade como texto |
 | `{{mention.<Nome>}}` | pessoas da propriedade como menção clicável (sem notificar); nome se não mapeada |
+| `{{person.<Nome>}}` | as mesmas pessoas em texto puro, `Nome (discord id)`; só o nome se não mapeada |
+| `{{mention.event.authors}}`, `{{person.event.authors}}` | quem fez a alteração que gerou o evento (ver [Quem fez a alteração](#quem-fez-a-alteração)) |
 | `{{change.from}}`, `{{change.to}}` | mudança da propriedade do `when` (ou a primeira mudança) |
 | `{{changes.summary}}` | todas as mudanças, uma por linha: `**Prop:** de → **para**` |
 | `{{comment.text}}` | texto do comentário |
-| `{{mention.comment.author}}`, `{{mention.comment.mentions}}` | autor e mencionados do comentário |
+| `{{mention.comment.author}}`, `{{mention.comment.mentions}}` | autor e mencionados do comentário (também com `person.`) |
 
 Tipos de propriedade convertidos em texto: title, rich_text, status, select, multi_select
 (separado por vírgula), date (início, `AAAA-MM-DD`), checkbox (`true`/`false`), number, people,
@@ -194,14 +196,15 @@ embed_defaults:
    usuário → **Copiar ID do usuário** (17 a 20 dígitos). E-mail em qualquer caixa.
 
 2. **Quem notificar por regra** — `mention:` lista propriedades de pessoa (*Person*,
-   *Created by*, *Last edited by*) ou `comment.mentions` / `comment.author`:
+   *Created by*, *Last edited by*), `event.authors` ou `comment.mentions` / `comment.author`:
 
    ```yaml
    mention: [Atribuido, "Criado por"]
    ```
 
 - A menção que notifica vai no texto da mensagem (o Discord não notifica dentro de embed);
-  `{{mention.X}}` no embed só mostra a menção clicável.
+  `{{mention.X}}` no embed só mostra a menção clicável, e `{{person.X}}` mostra nome e ID em
+  texto, sem chip (bom para um canal de histórico).
 - Só os IDs da regra são liberados (`allowed_mentions`): `@everyone` num título não dispara.
 - Pessoa sem mapa aparece pelo nome e não é notificada. Mesma pessoa em duas listas é marcada
   uma vez.
@@ -211,6 +214,26 @@ embed_defaults:
 - Quer marcar quem criou? Crie na database uma propriedade do tipo **Created by** (ex.:
   "Criado por") e use-a em `mention:`. Evite *Last edited by* se não precisar: cada troca de
   editor vira mudança no `{{changes.summary}}`.
+
+## Quem fez a alteração
+
+Todo evento de página traz quem o disparou. `event.authors` são essas pessoas, com o
+`discordId` do mapa `people`:
+
+```yaml
+fields:
+  - { name: "🛠️ Por", value: "{{mention.event.authors}}", inline: true }   # chip clicável
+  - { name: "🛠️ Por", value: "{{person.event.authors}}", inline: true }    # "Nome (id)" em texto
+```
+
+- Não notifica ninguém: quem fez a mudança não precisa de ping da própria ação. Para notificar,
+  ponha `event.authors` em `mention:`.
+- Evento agregado (várias edições juntas) pode ter mais de uma pessoa. Integrações e bots ficam
+  de fora, assim como pessoa que a integração não consegue ler; sem ninguém, o campo mostra `—`.
+- O serviço busca cada pessoa em `/users` só quando alguma regra casou com o evento. Se o Notion
+  responder 429 ou 5xx, o evento volta para a fila antes de gravar o snapshot, sem perder a
+  mudança.
+- Não vale em comentários: lá use `comment.author`.
 
 ## Comentários
 

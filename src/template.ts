@@ -26,12 +26,18 @@ function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
-// People behind a mention key: comment.author, comment.mentions or a page property.
+// People behind a key: event.authors, comment.author, comment.mentions or a page property.
 function peopleFor(event: EnrichedEvent, key: string): PagePerson[] | undefined {
+  if (key === 'event.authors') return event.authors;
   if (key === 'comment.author') return event.comment ? [event.comment.author] : undefined;
   if (key === 'comment.mentions') return event.comment?.mentions;
   const people = event.page.people;
   return people && Object.hasOwn(people, key) ? people[key] : undefined;
+}
+
+function personText(p: PagePerson, style: 'mention' | 'person'): string {
+  if (!p.discordId) return p.name;
+  return style === 'mention' ? `<@${p.discordId}>` : `${p.name} (${p.discordId})`;
 }
 
 function primaryChange(event: EnrichedEvent, rule: Rule): PropertyChange | undefined {
@@ -63,13 +69,15 @@ export function renderString(tpl: string, event: EnrichedEvent, rule: Rule): str
       const name = key.slice(5);
       return Object.hasOwn(event.page.properties, name) ? event.page.properties[name] ?? EMPTY : EMPTY;
     }
-    if (key.startsWith('mention.')) {
-      const prop = key.slice(8);
+    // mention.X: clickable <@id> chip; person.X: plain "Name (id)" text. Neither pings.
+    const style = key.startsWith('mention.') ? 'mention' : key.startsWith('person.') ? 'person' : null;
+    if (style) {
+      const prop = key.slice(style.length + 1);
       const people = peopleFor(event, prop);
       // Snapshots (page.deleted) have no people: fall back to the plain names.
       if (!people) return renderString(`{{prop.${prop}}}`, event, rule);
       if (people.length === 0) return EMPTY;
-      return people.map((p) => (p.discordId ? `<@${p.discordId}>` : p.name)).join(', ');
+      return people.map((p) => personText(p, style)).join(', ');
     }
     return EMPTY;
   });

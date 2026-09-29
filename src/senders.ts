@@ -22,7 +22,8 @@ function withoutEmails(event: EnrichedEvent): EnrichedEvent {
     author: noEmail(event.comment.author),
     mentions: event.comment.mentions.map(noEmail),
   };
-  return { ...event, page, ...(comment ? { comment } : {}) };
+  const authors = event.authors?.map(noEmail);
+  return { ...event, page, ...(comment ? { comment } : {}), ...(authors ? { authors } : {}) };
 }
 
 // The queue is serial: a target that never answers must not stall every later event.

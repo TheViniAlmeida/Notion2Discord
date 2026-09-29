@@ -57,8 +57,10 @@ rules:
         - { name: "📌 Status", value: "{{prop.Status}}", inline: true }
         - { name: "🚨 Prioridade", value: "{{prop.Prioridade}}", inline: true }
         - { name: "📅 Prazo", value: "{{prop.Prazo}}", inline: true }
-        - { name: "👤 Atribuído", value: "{{mention.Atribuido}}", inline: true }
-        - { name: "✍️ Criado por", value: "{{mention.Criado por}}", inline: true }
+        # Plain "Name (id)" text: the history channel shows people without mention chips.
+        - { name: "👤 Atribuído", value: "{{person.Atribuido}}", inline: true }
+        - { name: "✍️ Criado por", value: "{{person.Criado por}}", inline: true }
+        - { name: "🛠️ Por", value: "{{person.event.authors}}", inline: true }
 
   - name: tarefa-adicionada
     source: demandas
@@ -76,6 +78,7 @@ rules:
         - { name: "📅 Prazo", value: "{{prop.Prazo}}", inline: true }
         - { name: "👤 Atribuído", value: "{{mention.Atribuido}}", inline: true }
         - { name: "✍️ Criado por", value: "{{mention.Criado por}}", inline: true }
+        - { name: "🛠️ Por", value: "{{mention.event.authors}}", inline: true }
 
   - name: tarefa-em-andamento
     source: demandas
@@ -94,6 +97,7 @@ rules:
         - { name: "📅 Prazo", value: "{{prop.Prazo}}", inline: true }
         - { name: "👤 Atribuído", value: "{{mention.Atribuido}}", inline: true }
         - { name: "✍️ Criado por", value: "{{mention.Criado por}}", inline: true }
+        - { name: "🛠️ Por", value: "{{mention.event.authors}}", inline: true }
 
   - name: tarefa-atualizada
     source: demandas
@@ -109,6 +113,7 @@ rules:
       fields:
         - { name: "📌 Status", value: "{{prop.Status}}", inline: true }
         - { name: "👤 Atribuído", value: "{{mention.Atribuido}}", inline: true }
+        - { name: "🛠️ Por", value: "{{mention.event.authors}}", inline: true }
 
   - name: tarefa-finalizada
     source: demandas
@@ -126,6 +131,7 @@ rules:
         - { name: "🚨 Prioridade", value: "{{prop.Prioridade}}", inline: true }
         - { name: "👤 Atribuído", value: "{{mention.Atribuido}}", inline: true }
         - { name: "✍️ Criado por", value: "{{mention.Criado por}}", inline: true }
+        - { name: "🛠️ Por", value: "{{mention.event.authors}}", inline: true }
 
   # Needs "Read comments" on the Notion integration and comment.created in the subscription.
   - name: comentario

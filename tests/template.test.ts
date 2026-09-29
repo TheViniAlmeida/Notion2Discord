@@ -77,6 +77,23 @@ describe('mentions', () => {
   });
   it('falls back to the plain property when the page has no people (snapshot)', () => {
     expect(renderString('{{mention.Atribuido}}', event, rule)).toBe('Hades');
+    expect(renderString('{{person.Atribuido}}', event, rule)).toBe('Hades');
+  });
+  it('renders {{person.X}} as plain "Name (id)" text, without the mention chip', () => {
+    expect(renderString('{{person.Atribuido}}', withPeople, rule)).toBe('Ana (100000000000000001), Bia');
+    expect(renderString('{{person.Nada}}', withPeople, rule)).toBe('—');
+  });
+  it('renders the event authors, and never pings them without a mention list', () => {
+    const byAna: EnrichedEvent = {
+      ...event,
+      authors: [{ name: 'Ana', email: null, discordId: '100000000000000001' }],
+    };
+    expect(renderString('{{mention.event.authors}}', byAna, rule)).toBe('<@100000000000000001>');
+    expect(renderString('{{person.event.authors}}', byAna, rule)).toBe('Ana (100000000000000001)');
+    expect(renderString('{{mention.event.authors}}', event, rule)).toBe('—');
+    expect(renderMessage({ title: '{{mention.event.authors}}' }, byAna, rule).content).toBeUndefined();
+    expect(renderMessage({ title: 'x' }, byAna, { ...rule, mention: ['event.authors'] }).content)
+      .toBe('<@100000000000000001>');
   });
   it('pings only the mapped people of the rule mention list', () => {
     const msg = renderMessage({ title: '{{page.title}}' }, withPeople, { ...rule, mention: ['Atribuido'] });

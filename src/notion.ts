@@ -132,10 +132,10 @@ export class NotionClient {
     return normalizePage(await this.get(`/pages/${encodeURIComponent(pageId)}`, 'page'));
   }
 
-  // Comment payloads carry only user ids: name and e-mail come from /users.
+  // Event and comment payloads carry only user ids: name and e-mail come from /users.
   // A user the integration cannot read keeps the fallback name and gets no mention;
   // rate limits and outages propagate so the queue retries instead of dropping the ping.
-  private async fetchUser(userId: string, fallbackName: string): Promise<PagePerson> {
+  async fetchUser(userId: string, fallbackName: string): Promise<PagePerson> {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const u = (await this.get(`/users/${encodeURIComponent(userId)}`, 'user')) as any;

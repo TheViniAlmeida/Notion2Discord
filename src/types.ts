@@ -3,6 +3,8 @@ export type NotionEvent = {
   timestamp: string;
   type: string;
   entity: { id: string; type: string };
+  // Who triggered the event; aggregated events may list several.
+  authors?: { id: string; type: string }[];
   data?: {
     parent?: { id: string; type: string };
     page_id?: string; // comment.* events
@@ -45,4 +47,6 @@ export type EnrichedEvent = {
   changes: PropertyChange[];
   timestamp: string;
   comment?: CommentInfo;
+  // People who made the change (event.authors), resolved through /users. Bots are skipped.
+  authors?: PagePerson[];
 };
