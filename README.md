@@ -67,6 +67,24 @@ busca o comentário e as pessoas na API (o evento só traz ids): `{{comment.text
 `comment.updated` também funciona se uma regra o listar; `comment.deleted` é descartado (o
 comentário já não pode ser lido). Sem regra para o tipo, o serviço nem chama a API.
 
+### Visual do embed
+
+Campos aceitos em `embed` (todos com placeholders): `author` (`name`, `url`, `icon_url`), `title`,
+`url`, `description`, `color`, `fields` (`name`, `value`, `inline`), `thumbnail.url` (imagem à
+direita), `image.url` (imagem embaixo) e `footer` (`text`, `icon_url`). O `timestamp` é o do
+evento. `embed_defaults` define o visual comum (logo, imagem, rodapé) e cada regra sobrescreve
+chave a chave; `fields` da regra substitui a lista inteira:
+
+```yaml
+embed_defaults:
+  thumbnail: { url: "https://example.com/logo.png" }
+  image: { url: "https://example.com/line.gif" }
+  footer: { text: "Quadro de Demandas • #{{prop.ID}}", icon_url: "https://example.com/logo.png" }
+```
+
+Placeholders aceitam espaços e acentos: `{{prop.Esforço necessário}}`, `{{mention.Criado por}}`.
+Imagens precisam ser `https` e leves: o Discord baixa a imagem a cada exibição.
+
 ### Marcar pessoas no Discord
 
 A seção `people` liga o e-mail da pessoa no Notion ao ID dela no Discord. Uma regra com

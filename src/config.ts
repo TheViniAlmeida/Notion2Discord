@@ -24,11 +24,15 @@ const embedFieldSchema = z.object({
 });
 
 const embedSchema = z.object({
+  author: z.object({ name: z.string().min(1), url: z.string().optional(), icon_url: z.string().optional() }).optional(),
   title: z.string().optional(),
   description: z.string().optional(),
   url: z.string().optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   fields: z.array(embedFieldSchema).optional(),
+  thumbnail: z.object({ url: z.string() }).optional(),
+  image: z.object({ url: z.string() }).optional(),
+  footer: z.object({ text: z.string().min(1), icon_url: z.string().optional() }).optional(),
 });
 
 const rawTargetSchema = z.union([
@@ -52,6 +56,8 @@ const rawConfigSchema = z.object({
     }),
   ),
   labels: z.record(z.string(), z.string()).optional(),
+  // Shared look (thumbnail, image, footer...): each rule embed overrides key by key.
+  embed_defaults: embedSchema.optional(),
   // Notion e-mail -> Discord user id. Personal data: keep it in the host-only rules.yaml.
   people: z.record(z.string(), z.string().regex(/^\d{17,20}$/, 'discord user id must be 17-20 digits')).optional(),
 });
@@ -100,10 +106,15 @@ export function loadConfig(
     }
   }
 
+  const defaults = raw.embed_defaults ?? {};
+  const rules = raw.rules.map((rule) =>
+    rule.embed ? { ...rule, embed: { ...defaults, ...rule.embed } } : rule,
+  );
+
   return {
     sources: raw.sources,
     targets,
-    rules: raw.rules,
+    rules,
     labels: { ...DEFAULT_LABELS, ...raw.labels },
     people: Object.fromEntries(
       Object.entries(raw.people ?? {}).map(([email, id]) => [email.toLowerCase(), id]),

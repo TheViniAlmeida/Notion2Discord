@@ -113,3 +113,47 @@ describe('comment placeholders', () => {
     expect(msg.content).toBe('<@100000000000000001>');
   });
 });
+
+describe('rich embeds', () => {
+  const rich: EnrichedEvent = {
+    ...event,
+    page: {
+      ...event.page,
+      properties: { ...event.page.properties, 'Esforço necessário': 'Alto' },
+      people: { 'Criado por': [{ name: 'Ana', email: null, discordId: '100000000000000001' }] },
+    },
+  };
+  it('renders author, thumbnail, image and footer with placeholders', () => {
+    const embed = renderEmbed(
+      {
+        author: { name: '🆕 {{event.label}}', icon_url: 'https://example.com/i.png' },
+        thumbnail: { url: 'https://example.com/logo.png' },
+        image: { url: 'https://example.com/line.gif' },
+        footer: { text: 'ID {{prop.Status}}', icon_url: 'https://example.com/i.png' },
+      },
+      rich,
+      rule,
+    );
+    expect(embed.author).toEqual({ name: '🆕 Tarefa atualizada', icon_url: 'https://example.com/i.png' });
+    expect(embed.thumbnail).toEqual({ url: 'https://example.com/logo.png' });
+    expect(embed.image).toEqual({ url: 'https://example.com/line.gif' });
+    expect(embed.footer).toEqual({ text: 'ID Concluido', icon_url: 'https://example.com/i.png' });
+  });
+  it('drops image and icon fields whose URL is not http(s)', () => {
+    const embed = renderEmbed(
+      { thumbnail: { url: '{{prop.Capa}}' }, image: { url: 'not a url' }, footer: { text: 'x', icon_url: '{{prop.Nada}}' } },
+      rich,
+      rule,
+    );
+    expect(embed.thumbnail).toBeUndefined();
+    expect(embed.image).toBeUndefined();
+    expect(embed.footer).toEqual({ text: 'x' });
+  });
+  it('ignores inherited object keys in placeholders', () => {
+    expect(renderString('{{prop.toString}}|{{mention.toString}}', rich, rule)).toBe('—|—');
+  });
+  it('accepts keys with spaces and accents', () => {
+    expect(renderString('{{prop.Esforço necessário}} / {{ mention.Criado por }}', rich, rule))
+      .toBe('Alto / <@100000000000000001>');
+  });
+});
