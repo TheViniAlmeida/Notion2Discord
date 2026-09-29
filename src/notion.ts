@@ -4,6 +4,16 @@ const NOTION_VERSION = '2025-09-03';
 const API_BASE = 'https://api.notion.com/v1';
 
 type RichTextItem = { plain_text: string };
+type NotionUser = { name?: string; person?: { email?: string } };
+
+// Property types whose value is one or more Notion users (mentionable).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function usersOf(prop: any): NotionUser[] | null {
+  if (prop?.type === 'people') return prop.people ?? [];
+  if (prop?.type === 'created_by') return prop.created_by ? [prop.created_by] : [];
+  if (prop?.type === 'last_edited_by') return prop.last_edited_by ? [prop.last_edited_by] : [];
+  return null;
+}
 
 function joinRichText(items: RichTextItem[] | undefined): string | null {
   const text = (items ?? []).map((i) => i.plain_text).join('');
@@ -32,9 +42,11 @@ function normalizeProperty(prop: any): string | null {
     case 'number':
       return prop.number === null || prop.number === undefined ? null : String(prop.number);
     case 'people':
-      return prop.people?.length
-        ? prop.people.map((p: { name?: string }) => p.name ?? 'unknown').join(', ')
-        : null;
+    case 'created_by':
+    case 'last_edited_by': {
+      const users = usersOf(prop)!;
+      return users.length ? users.map((u) => u.name ?? 'unknown').join(', ') : null;
+    }
     case 'url':
       return prop.url ?? null;
     case 'email':
@@ -60,8 +72,9 @@ export function normalizePage(raw: unknown): NormalizedPage {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = prop as any;
     if (p?.type === 'title') title = value ?? '';
-    if (p?.type === 'people') {
-      people[name] = (p.people ?? []).map((u: { name?: string; person?: { email?: string } }) => ({
+    const users = usersOf(p);
+    if (users) {
+      people[name] = users.map((u) => ({
         name: u.name ?? 'unknown',
         email: u.person?.email?.toLowerCase() ?? null,
       }));

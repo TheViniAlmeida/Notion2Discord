@@ -38,6 +38,23 @@ describe('normalizePage', () => {
   });
 });
 
+describe('normalizePage created_by / last_edited_by', () => {
+  it('treats them as single-person, mentionable properties', () => {
+    const page = normalizePage({
+      id: 'p',
+      properties: {
+        'Criado por': { type: 'created_by', created_by: { name: 'Ana', person: { email: 'Ana@Example.com' } } },
+        'Editado por': { type: 'last_edited_by', last_edited_by: { name: 'Bia' } },
+      },
+    });
+    expect(page.properties).toEqual({ 'Criado por': 'Ana', 'Editado por': 'Bia' });
+    expect(page.people).toEqual({
+      'Criado por': [{ name: 'Ana', email: 'ana@example.com' }],
+      'Editado por': [{ name: 'Bia', email: null }],
+    });
+  });
+});
+
 describe('normalizePage people', () => {
   it('keeps people with lowercased e-mails for mentions', () => {
     expect(normalizePage(rawPage).people).toEqual({

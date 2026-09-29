@@ -60,7 +60,8 @@ Condições `when`: `changed_to`, `changed_from`, `equals`, `changed`. Placehold
 ### Marcar pessoas no Discord
 
 A seção `people` liga o e-mail da pessoa no Notion ao ID dela no Discord. Uma regra com
-`mention: [Atribuido]` marca (com notificação) quem está nessa propriedade do tipo *people*:
+`mention: [Atribuido]` marca (com notificação) quem está nessa propriedade. Valem os tipos
+*people*, *Created by* e *Last edited by* (ex.: `mention: [Atribuido, "Criado por"]`):
 
 ```yaml
 people:
